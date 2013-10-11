@@ -681,6 +681,10 @@ void RSPConnection::_repeatData()
         const uint16_t distance = _sequence - request.start;
         EQASSERT( distance != 0 );
 
+        // Safe Guard
+        if ( distance == 0 )
+            continue;
+
         if( distance <= _writeBuffers.size( )) // not already acked
         {
 //          EQLOG( LOG_RSP ) << "Repeat " << request.start << ", " << _sendRate
@@ -1034,7 +1038,7 @@ bool RSPConnection::_handleData( Buffer& buffer )
 
     // early nack: request missing packets before current
     --i;
-    Nack nack = { connection->_sequence, sequence - 1 };
+    Nack nack = { connection->_sequence, uint16_t( sequence - 1 ) };
     if( i > 0 )
     {
         if( connection->_recvBuffers[i] ) // got previous packet
@@ -1046,9 +1050,7 @@ bool RSPConnection::_handleData( Buffer& buffer )
         const Buffer* lastBuffer = i>=0 ? connection->_recvBuffers[i] : 0;
         if( lastBuffer )
         {
-            const DatagramData* last = 
-                reinterpret_cast<const DatagramData*>( lastBuffer->getData( ));
-            nack.start = last->sequence + 1;
+            nack.start = connection->_sequence + i; 
         }
     }
 

@@ -104,23 +104,30 @@ void CommandCache::_compact( const Cache which )
     const int32_t target = maxFree >> 1;
     EQASSERT( target > 0 );
     Data& cache = _cache[ which ];
-    for( Data::iterator i = cache.begin(); i != cache.end(); )
+    Data temp;
+    std::list<Command*> tmpList;
+    for( Data::iterator i = cache.begin(); i != cache.end(); ++i )
     {
-        const Command* cmd = *i;
-        if( cmd->isFree( ))
+        Command* cmd = *i;
+        if( cmd->isFree( ) && --currentFree > target )
         {
             EQASSERT( currentFree > 0 );
-            i = cache.erase( i );
-            delete cmd;
+            tmpList.push_back( cmd );
 
 #  ifdef PROFILE
             ++_frees;
 #  endif
-            if( --currentFree <= target )
-                break;
         }
         else
-            ++i;
+            temp.push_back( cmd );
+    }
+
+    cache.clear();
+    cache.swap( temp );
+    std::list<Command*>::iterator it;
+    for ( it = tmpList.begin(); it != tmpList.end(); ++it )
+    {
+        delete *it;
     }
 
     const int32_t num = int32_t( cache.size() >> _freeShift );
@@ -156,7 +163,7 @@ Command& CommandCache::_newCommand( const Cache which )
             ++_lookups;
 #endif
             Command* command = *i;
-            if( command->isFree( ))
+            if( command && command->isFree( ))
             {
 #ifdef PROFILE
                 const long hits = ++_hits;
