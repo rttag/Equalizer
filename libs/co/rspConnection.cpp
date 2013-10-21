@@ -679,11 +679,14 @@ void RSPConnection::_repeatData()
     {
         Nack& request = _repeatQueue.front(); 
         const uint16_t distance = _sequence - request.start;
-        EQASSERT( distance != 0 );
 
-        // Safe Guard
         if ( distance == 0 )
+        {
+            EQWARN << "received invalid nack (" << request.start
+                << ".." << request.end << "), ignoring..." << std::endl;
+            _repeatQueue.pop_front();
             continue;
+        }
 
         if( distance <= _writeBuffers.size( )) // not already acked
         {
@@ -1007,8 +1010,12 @@ bool RSPConnection::_handleData( Buffer& buffer )
         return true;
     }
     
-    if( connection->_sequence > sequence ||
-        uint16_t( connection->_sequence - sequence ) <= _numBuffers )
+    uint16_t max = std::numeric_limits<uint16_t>::max();
+    if( connection->_sequence > sequence && 
+        max - connection->_sequence + sequence > _numBuffers
+        ||
+        connection->_sequence < sequence &&
+        sequence - connection->_sequence > _numBuffers )
     {
         // ignore it if it's a repetition for another reader
         return true;
