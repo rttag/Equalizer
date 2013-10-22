@@ -109,10 +109,11 @@ void CommandCache::_compact( const Cache which )
     for( Data::iterator i = cache.begin(); i != cache.end(); ++i )
     {
         Command* cmd = *i;
-        if( cmd->isFree( ) && --currentFree > target )
+        if( cmd->isFree( ) && currentFree > target )
         {
             EQASSERT( currentFree > 0 );
             tmpList.push_back( cmd );
+            currentFree--;
 
 #  ifdef PROFILE
             ++_frees;
