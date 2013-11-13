@@ -355,7 +355,7 @@ uint32_t ObjectStore::mapObjectNB( Object* object, const base::UUID& id,
 uint32_t ObjectStore::mapObjectNB( Object* object, const base::UUID& id, 
                                    const uint128_t& version, NodePtr master )
 {
-    EQ_TS_NOT_THREAD( _commandThread );
+    //EQ_TS_NOT_THREAD( _commandThread );
     EQ_TS_NOT_THREAD( _receiverThread );
     EQLOG( LOG_OBJECTS ) << "Mapping " << base::className( object ) << " to id "
                          << id << " version " << version << std::endl;
