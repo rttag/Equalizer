@@ -143,6 +143,8 @@ namespace detail { class Client; }
 
         /** The command functions. */
         bool _cmdExit( co::ICommand& command );
+
+        bool _cmdAnnounceMaster( co::ICommand& command );
     };
 }
 

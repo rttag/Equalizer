@@ -38,6 +38,7 @@
 #include <co/connectionDescription.h>
 #include <co/global.h>
 #include <lunchbox/dso.h>
+#include <co/exception.h>
 
 #ifdef WIN32_API
 #  include <direct.h>  // for chdir
@@ -62,6 +63,7 @@ public:
     Strings activeLayouts;
     std::string gpuFilter;
     float modelUnit;
+    co::NodePtr master;
 };
 }
 
@@ -82,6 +84,9 @@ Client::Client()
 {
     registerCommand( fabric::CMD_CLIENT_EXIT,
                      ClientFunc( this, &Client::_cmdExit ), &impl_->queue );
+
+    registerCommand( fabric::CMD_CLIENT_ANNOUNCE_MASTER,
+        ClientFunc( this, &Client::_cmdAnnounceMaster ), 0 );
 
     LBVERB << "New client at " << (void*)this << std::endl;
 }
@@ -335,8 +340,31 @@ void Client::clientLoop()
     LBINFO << "Entered client loop" << std::endl;
 
     impl_->running = true;
-    while( impl_->running )
-        processCommand();
+    while( impl_->running ) 
+    {
+        try 
+        {
+            processCommand( co::Global::getKeepaliveTimeout() );
+        }
+        catch( co::Exception &e ) 
+        {
+            if( e.getType() == co::Exception::TIMEOUT_COMMANDQUEUE && impl_->master ) 
+            {
+                ping( impl_->master );
+                LBERROR << "Client Command timed out !"<<std::endl;
+            
+                const int64_t interval = getTime64() -
+                    impl_->master->getLastReceiveTime();
+
+                LBERROR << "Interval_val: "<< interval << std::endl;
+
+                if( interval > co::Global::getTimeout() ) { 
+                    impl_->running = false;
+                    LBERROR << "Client is terminated!" << std::endl;
+                }
+            }
+        }
+    }
 
     // cleanup
     impl_->queue.flush();
@@ -406,6 +434,14 @@ bool Client::_cmdExit( co::ICommand& command )
     impl_->running = false;
     // Close connection here, this is the last command we'll get on it
     command.getLocalNode()->disconnect( command.getNode( ));
+    return true;
+}
+
+bool Client::_cmdAnnounceMaster( co::ICommand& command )
+{
+    impl_->master = command.getNode();
+    LBCHECK( impl_->master );
+
     return true;
 }
 

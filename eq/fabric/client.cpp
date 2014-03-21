@@ -101,7 +101,14 @@ void Client::processCommand( const uint32_t timeout )
 {
     co::CommandQueue* queue = getMainThreadQueue();
     LBASSERT( queue );
-    co::ICommand command = queue->pop( timeout );
+    co::ICommand command;
+    try 
+    {
+        command = queue->pop( timeout );
+    }
+    catch ( ... ) {
+        throw;
+    }
     if( !command.isValid( )) // just a wakeup()
         return;
 

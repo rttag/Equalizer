@@ -502,6 +502,22 @@ bool Node::_cmdConfigInit( co::ICommand& cmd )
         setIAttribute( IATTR_THREAD_MODEL, eq::DRAW_SYNC );
 
     _state = result ? STATE_RUNNING : STATE_INIT_FAILED;
+    
+    if( isApplicationNode() )
+    {
+        co::LocalNodePtr node = getLocalNode();
+        co::Nodes nodes;
+        co::NodePtr server = command.getNode();
+        node->getNodes( nodes, false );
+        for( co::NodesIter i = nodes.begin(); i != nodes.end(); ++i ) 
+        {
+            co::NodePtr curNode = *i;
+
+            if( curNode->getNodeID() == server->getNodeID() )
+                continue;
+            curNode->send( fabric::CMD_CLIENT_ANNOUNCE_MASTER );
+        }
+    }
 
     commit();
     send( command.getNode(), fabric::CMD_NODE_CONFIG_INIT_REPLY ) << result;

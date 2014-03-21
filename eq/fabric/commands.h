@@ -51,6 +51,7 @@ namespace fabric
     enum ClientCommand
     {
         CMD_CLIENT_EXIT = CMD_SERVER_CUSTOM, // 70
+        CMD_CLIENT_ANNOUNCE_MASTER,
         CMD_CLIENT_CUSTOM = CMD_SERVER_CUSTOM + 5
     };
 
