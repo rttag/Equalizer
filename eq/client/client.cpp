@@ -440,7 +440,7 @@ bool Client::_cmdExit( co::ICommand& command )
 bool Client::_cmdAnnounceMaster( co::ICommand& command )
 {
     impl_->master = command.getNode();
-    LBCHECK( impl_->master );
+    assert( impl_->master );
 
     return true;
 }
