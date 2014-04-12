@@ -356,7 +356,7 @@ void Client::clientLoop()
                 const int64_t interval = getTime64() -
                     impl_->master->getLastReceiveTime();
 
-                if( interval > co::Global::getTimeout() ) 
+                if( interval > 2 * co::Global::getTimeout() ) 
                 { 
                     impl_->running = false;
                     LBERROR << "Master timed out, client will terminate: " 
