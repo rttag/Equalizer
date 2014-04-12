@@ -348,19 +348,19 @@ void Client::clientLoop()
         }
         catch( co::Exception &e ) 
         {
-            if( e.getType() == co::Exception::TIMEOUT_COMMANDQUEUE && impl_->master ) 
+            if( e.getType() == co::Exception::TIMEOUT_COMMANDQUEUE 
+                                                    && impl_->master ) 
             {
                 ping( impl_->master );
-                LBERROR << "Client Command timed out !"<<std::endl;
             
                 const int64_t interval = getTime64() -
                     impl_->master->getLastReceiveTime();
 
-                LBERROR << "Interval_val: "<< interval << std::endl;
-
-                if( interval > co::Global::getTimeout() ) { 
+                if( interval > co::Global::getTimeout() ) 
+                { 
                     impl_->running = false;
-                    LBERROR << "Client is terminated!" << std::endl;
+                    LBERROR << "Master timed out, client will terminate: " 
+                            << interval << std::endl;
                 }
             }
         }
