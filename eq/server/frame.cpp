@@ -175,16 +175,22 @@ void Frame::addInputFrame( Frame* frame, const Compound* compound )
             if( inputNode != getNode( ))
             {
                 co::NodePtr inputNetNode = inputNode->getNode();
-                _getInputNodes( i ).push_back( inputNode->getID( ));
-                _getInputNetNodes( i ).push_back( inputNetNode->getNodeID( ));
+                if( inputNetNode ) 
+                {
+                    _getInputNodes( i ).push_back( inputNode->getID( ));
+                    _getInputNetNodes( i ).push_back( inputNetNode->getNodeID( ));
+                }
             }
             //add output frames too
             const Node* outputNode = getNode();
             if( outputNode != frame->getNode( ))
             {
                 co::NodePtr outputNetNode = outputNode->getNode();
-                frame->_getOutputNodes( i ).push_back( outputNode->getID() );
-                frame->_getOutputNetNodes( i ).push_back( outputNetNode->getNodeID());
+                if( outputNetNode )
+                {
+                    frame->_getOutputNodes( i ).push_back( outputNode->getID() );
+                    frame->_getOutputNetNodes( i ).push_back( outputNetNode->getNodeID());
+                }
             }
         }
         else
