@@ -1108,13 +1108,16 @@ bool Config::_cmdFinishAllFrames( co::ICommand& cmd )
 
 bool Config::_cmdStopFrames( co::ICommand& cmd )
 {
+    uint32_t stopFrameNumber;
     co::ObjectICommand command( cmd );
+    command >> stopFrameNumber;
+    if( stopFrameNumber == _currentFrame ) 
+    {
+        LBVERB << "handle config stop frames " << command << std::endl;
 
-    LBVERB << "handle config stop frames " << command << std::endl;
-
-    ChannelStopFrameVisitor visitor( _currentFrame );
-    accept( visitor );
-
+        ChannelStopFrameVisitor visitor( _currentFrame );
+        accept( visitor );
+    }
     return true;
 }
 
