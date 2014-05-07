@@ -64,6 +64,7 @@ public:
     std::string gpuFilter;
     float modelUnit;
     co::NodePtr master;
+    uint64_t lastPingTime;
 };
 }
 
@@ -356,12 +357,16 @@ void Client::clientLoop()
                 const int64_t interval = getTime64() -
                     impl_->master->getLastReceiveTime();
 
-                if( interval > 2 * co::Global::getTimeout() ) 
+                const int64_t pingInt = getTime64() - impl_->lastPingTime;
+
+                if( interval > 2 * co::Global::getTimeout() &&
+                    pingInt < co::Global::getTimeout() ) 
                 { 
                     impl_->running = false;
                     LBERROR << "Master timed out, client will terminate: " 
                             << interval << std::endl;
                 }
+                impl_->lastPingTime = getTime64();
             }
         }
     }
