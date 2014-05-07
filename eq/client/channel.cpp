@@ -1886,10 +1886,13 @@ bool Channel::_cmdFrameSetReadyNode( co::ICommand& cmd )
          i != nodes.end(); ++i, ++j )
     {
         co::NodePtr toNode = localNode->connect( *j );
-        co::ObjectOCommand( co::Connections( 1, toNode->getConnection( )),
-                            fabric::CMD_NODE_FRAMEDATA_READY,
-                            co::COMMANDTYPE_OBJECT, *i, EQ_INSTANCE_ALL )
-            << frameDataVersion << frameData->_data;
+        if( toNode )
+        {
+            co::ObjectOCommand( co::Connections( 1, toNode->getConnection( )),
+                fabric::CMD_NODE_FRAMEDATA_READY,
+                co::COMMANDTYPE_OBJECT, *i, EQ_INSTANCE_ALL )
+                << frameDataVersion << frameData->_data;
+        }
     }
 
     _unrefFrame( frameNumber );

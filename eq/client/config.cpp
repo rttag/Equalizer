@@ -499,7 +499,7 @@ void Config::releaseFrameLocal( const uint32_t frameNumber )
 
 void Config::stopFrames()
 {
-    send( getServer(), fabric::CMD_CONFIG_STOP_FRAMES );
+    send( getServer(), fabric::CMD_CONFIG_STOP_FRAMES ) << _impl->currentFrame;
 }
 
 namespace
