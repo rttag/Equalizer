@@ -343,6 +343,7 @@ void Client::clientLoop()
     impl_->running = true;
     while( impl_->running ) 
     {
+#if 0
         try 
         {
             processCommand( co::Global::getKeepaliveTimeout() );
@@ -369,6 +370,9 @@ void Client::clientLoop()
                 impl_->lastPingTime = getTime64();
             }
         }
+#else
+        processCommand();
+#endif
     }
 
     // cleanup
