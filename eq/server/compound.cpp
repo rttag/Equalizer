@@ -823,19 +823,44 @@ void Compound::_updateOverdraw( Wall& wall )
     const Viewport& viewVP    = view->getViewport();
     const Vector2i& overdraw  = view->getOverdraw();
     Vector4i channelOverdraw( Vector4i::ZERO );
+    const PixelViewport& chanPVP = channel->getPixelViewport();
+    Viewport chanVP = getInheritViewport();
+
+    if( chanPVP.hasArea( ))
+        chanVP.applyView( segment->getViewport(), view->getViewport(),
+        chanPVP, Vector4i( 0, 0, 0, 0 ));
+
+    Vector4i maxOverdraw;
+    if ( chanVP.hasArea( ))
+    {
+        float viewWidth = chanPVP.w / chanVP.w;
+        float viewHeight = chanPVP.h / chanVP.h;
+
+        maxOverdraw.x() = chanVP.x * viewWidth;
+        maxOverdraw.z() = chanVP.y * viewHeight;
+        maxOverdraw.y() = ( 1 - chanVP.getXEnd() ) * viewWidth;
+        maxOverdraw.w() = ( 1 - chanVP.getYEnd() ) * viewHeight;
+    }
+    else
+    {
+        maxOverdraw.x() = INT_MAX;
+        maxOverdraw.y() = INT_MAX;
+        maxOverdraw.z() = INT_MAX;
+        maxOverdraw.w() = INT_MAX;
+    }
 
     // compute overdraw
     if( overdraw.x() && viewVP.x < segmentVP.x )
-        channelOverdraw.x() = overdraw.x();
+        channelOverdraw.x() = LB_MIN( overdraw.x(), maxOverdraw.x() );
 
     if( overdraw.x() && viewVP.getXEnd() > segmentVP.getXEnd( ))
-        channelOverdraw.z() = overdraw.x();
+        channelOverdraw.z() = LB_MIN( overdraw.x(), maxOverdraw.z() );
 
     if( overdraw.y() && viewVP.y < segmentVP.y )
-        channelOverdraw.y() = overdraw.y();
+        channelOverdraw.y() = LB_MIN( overdraw.y(), maxOverdraw.y() );
 
     if( overdraw.y() && viewVP.getYEnd() > segmentVP.getYEnd( ))
-        channelOverdraw.w() = overdraw.y();
+        channelOverdraw.w() = LB_MIN( overdraw.y(), maxOverdraw.w() );
 
     // clamp to max channel size
     const Vector2i& maxSize = channel->getMaxSize();

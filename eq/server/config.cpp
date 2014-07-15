@@ -677,8 +677,8 @@ void Config::_stopNodes()
         stoppingNodes.push_back( node );
         LBASSERT( netNode.isValid( ));
 
-        netNode->send( fabric::CMD_SERVER_DESTROY_CONFIG )
-                << getID() << LB_UNDEFINED_UINT32;
+        //netNode->send( fabric::CMD_SERVER_DESTROY_CONFIG )
+        //        << getID() << LB_UNDEFINED_UINT32;
         netNode->send( fabric::CMD_CLIENT_EXIT );
     }
 
