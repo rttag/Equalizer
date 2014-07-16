@@ -826,6 +826,7 @@ void Compound::_updateOverdraw( Wall& wall )
     const PixelViewport& chanPVP = channel->getPixelViewport();
     Viewport chanVP = getInheritViewport();
 
+    // limit overdraw to canvas size
     if( chanPVP.hasArea( ))
         chanVP.applyView( segment->getViewport(), view->getViewport(),
         chanPVP, Vector4i( 0, 0, 0, 0 ));
@@ -872,24 +873,24 @@ void Compound::_updateOverdraw( Wall& wall )
         const int32_t xSize = xOverdraw + channelPVP.w;
         if( xSize > maxSize.x( ))
         {
-            const uint32_t maxOverdraw = maxSize.x() - channelPVP.w;
-            const float ratio = static_cast< float >( maxOverdraw ) /
+            const uint32_t maxOverdrawChan = maxSize.x() - channelPVP.w;
+            const float ratio = static_cast< float >( maxOverdrawChan ) /
                                 static_cast< float >( xOverdraw );
             channelOverdraw.x() = static_cast< int >(
                 channelOverdraw.x() * ratio + .5f );
-            channelOverdraw.z() = maxOverdraw - channelOverdraw.x();
+            channelOverdraw.z() = maxOverdrawChan - channelOverdraw.x();
         }
 
         const int32_t yOverdraw = channelOverdraw.y() + channelOverdraw.w();
         const int32_t ySize = yOverdraw + channelPVP.h;
         if( ySize > maxSize.y( ))
         {
-            const uint32_t maxOverdraw = maxSize.y() - channelPVP.h;
-            const float ratio = static_cast< float >( maxOverdraw ) /
+            const uint32_t maxOverdrawChan = maxSize.y() - channelPVP.h;
+            const float ratio = static_cast< float >( maxOverdrawChan ) /
                                 static_cast< float >( yOverdraw );
             channelOverdraw.y() = static_cast< int >(
                 channelOverdraw.y() * ratio +.5f );
-            channelOverdraw.w() = maxOverdraw - channelOverdraw.y();
+            channelOverdraw.w() = maxOverdrawChan - channelOverdraw.y();
         }
     }
 
