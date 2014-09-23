@@ -838,8 +838,8 @@ void Compound::_updateOverdraw( Wall& wall )
         float viewHeight = chanPVP.h / chanVP.h;
 
         maxOverdraw.x() = chanVP.x * viewWidth;
-        maxOverdraw.z() = chanVP.y * viewHeight;
-        maxOverdraw.y() = ( 1 - chanVP.getXEnd() ) * viewWidth;
+        maxOverdraw.z() = ( 1 - chanVP.getXEnd() ) * viewWidth;
+        maxOverdraw.y() = chanVP.y * viewHeight;
         maxOverdraw.w() = ( 1 - chanVP.getYEnd() ) * viewHeight;
     }
     else
