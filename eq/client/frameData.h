@@ -56,6 +56,7 @@ namespace server { class FrameData; }
     {
     public:
         void assembleFrame( Frame* frame, Channel* channel );
+        void uploadImages( const Vector2i& offset, ObjectManager* glObjects );
         struct ImageHeader
         {
             uint32_t                internalFormat;

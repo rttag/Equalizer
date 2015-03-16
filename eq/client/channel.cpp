@@ -138,6 +138,12 @@ void Channel::attach( const UUID& id, const uint32_t instanceID )
     registerCommand( fabric::CMD_CHANNEL_DELETE_TRANSFER_CONTEXT,
                      CmdFunc( this,&Channel::_cmdDeleteTransferContext ),
                      transferQ );
+    registerCommand( fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES,
+                     CmdFunc( this, &Channel::_cmdFrameUploadImages ),
+                     transferQ );
+    registerCommand( fabric::CMD_CHANNEL_PREPARE_ASYNC_UPLOAD,
+                     CmdFunc( this, &Channel::_cmdPrepareAsyncUpload ),
+                     commandQ );
 }
 
 co::CommandQueue* Channel::getPipeThreadQueue()
@@ -1770,6 +1776,10 @@ bool Channel::_cmdFrameAssemble( co::ICommand& cmd )
         << " nFrames " << frames.size() << std::endl;
 
     _setRenderContext( context );
+
+    LBCHECK( getWindow()->createTransferWindow( ));
+    LBCHECK( getPipe()->startTransferThread( ));
+
     ChannelStatistics event( Statistic::CHANNEL_ASSEMBLE, this );
     for( size_t i=0; i < frames.size(); ++i )
     {
@@ -1970,10 +1980,59 @@ bool Channel::_cmdDeleteTransferContext( co::ICommand& cmd )
     return true;
 }
 
+bool Channel::_cmdFrameUploadImages( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    const co::ObjectVersion frameDataVersion =
+        command.get< co::ObjectVersion >();
+    const FrameData::Data data = command.get< FrameData::Data >();
+    Vector2i offset ;
+    offset = command.get< Vector2i >();
+
+    getWindow()->makeCurrentTransfer();
+    FrameDataPtr frameData = getNode()->getFrameData( frameDataVersion );
+    {
+        ChannelStatistics uploadEvent( Statistic::CHANNEL_ASYNC_UPLOAD, this, 
+            getCurrentFrame() );
+        frameData->uploadImages( offset, getObjectManager() );
+    }
+
+    LBERROR << "async upload finished for " << getCurrentFrame() << std::endl;
+
+    LBASSERT( frameData );
+    LBASSERT( !frameData->isReady() );
+    frameData->setReady( frameDataVersion, data );
+    LBASSERT( frameData->isReady() );
+
+    return true;
+}
+
+struct FrameOffsetType 
+{
+    co::ObjectVersion frame;
+    Vector2i offset;
+};
+
+bool Channel::_cmdPrepareAsyncUpload( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    
+    const std::vector< FrameOffsetType > frames = 
+        command.get< std::vector< FrameOffsetType > >();
+
+    for( size_t i=0; i < frames.size(); ++i )
+    {
+        getNode()->prepareAsyncUpload( this, frames[i].frame, frames[i].offset );
+    }
+
+    return true;
+}
+
 }
 
 namespace lunchbox
 {
+template<> inline void byteswap( eq::FrameOffsetType &) { /*NOP*/ }
 template<> inline void byteswap( eq::detail::RBStat*& value ) { /*NOP*/ }
 }
 

@@ -30,6 +30,8 @@
 #include "nodeStatistics.h"
 #include "pipe.h"
 #include "server.h"
+#include "types.h"
+#include "channel.h"
 
 #include <eq/fabric/commands.h>
 #include <eq/fabric/elementVisitor.h>
@@ -672,12 +674,28 @@ bool Node::_cmdFrameDataReady( co::ICommand& cmd )
 
     LBLOG( LOG_ASSEMBLY ) << "received ready for " << frameDataVersion
                           << std::endl;
+    
+    Channel* chan = _dataToChanMap[frameDataVersion].first;
+    if ( chan )
+    {
+        chan->send( getLocalNode(), fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES ) 
+            << frameDataVersion << data << _dataToChanMap[frameDataVersion].second;
+        return true;
+    }
+    
     FrameDataPtr frameData = getFrameData( frameDataVersion );
     LBASSERT( frameData );
     LBASSERT( !frameData->isReady() );
     frameData->setReady( frameDataVersion, data );
     LBASSERT( frameData->isReady() );
     return true;
+}
+
+void Node::prepareAsyncUpload( Channel* chan, 
+                               const co::ObjectVersion& frame,
+                               const Vector2i& offset )
+{
+    _dataToChanMap[frame] = std::make_pair( chan, offset );
 }
 
 bool Node::_cmdSetAffinity( co::ICommand& cmd )

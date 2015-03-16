@@ -508,13 +508,13 @@ void CompressorReadDrawPixels::finishDownload( const GLEWContext* glewContext,
         if( ptr )
         {
             memcpy( _buffer.getData(), ptr, size );
-            _pbo->unmap();
         }
         else
         {
             LBERROR << "Can't map PBO: " << _pbo->getError()<< std::endl;
             EQ_GL_ERROR( "PixelBufferObject::mapRead()" );
         }
+        _pbo->unmap();
     }
 #else  // async RB through texture
     if( flags & EQ_COMPRESSOR_USE_FRAMEBUFFER )

@@ -764,6 +764,7 @@ void Config::addStatistic( const uint32_t originator, const Statistic& stat )
           type.group = "channel";
           break;
       case Statistic::CHANNEL_ASYNC_READBACK:
+      case Statistic::CHANNEL_ASYNC_UPLOAD:
           type.group = "channel";
           type.subgroup = "transfer";
           item.thread = THREAD_ASYNC1;

@@ -455,6 +455,10 @@ bool Image::upload( const Frame::Buffer buffer, util::Texture* texture,
                     const Vector2i& position, ObjectManager* glObjects ) const
 {
     LBASSERT( glObjects );
+    if ( getStorageType() == Frame::TYPE_TEXTURE && !texture )
+    {
+        texture = &(_impl->getAttachment(buffer).texture);
+    }
 
     // freed by deleteGLObjects, e.g., called from Pipe::flushFrames()
     lunchbox::Uploader* uploader = glObjects->obtainEqUploader(

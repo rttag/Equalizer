@@ -117,6 +117,7 @@ VisitorResult ChannelUpdateVisitor::visitPre( const Compound* compound )
 
     _updateFrameRate( compound );
     _updateViewStart( compound, context );
+    _prepareAsyncUpload( compound, context );
 
     if( compound->testInheritTask( fabric::TASK_CLEAR ))
         _sendClear( context );
@@ -139,6 +140,7 @@ VisitorResult ChannelUpdateVisitor::visitLeaf( const Compound* compound )
     _setupRenderContext( compound, context );
     _updateFrameRate( compound );
     _updateViewStart( compound, context );
+    _prepareAsyncUpload( compound, context );
     _updateDraw( compound, context );
     _updateDrawFinish( compound );
     _updatePostDraw( compound, context );
@@ -402,7 +404,7 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
 
     co::ObjectVersions frames;
     for( Frames::const_iterator iter = inputFrames.begin();
-         iter != inputFrames.end(); ++iter )
+        iter != inputFrames.end(); ++iter )
     {
         Frame* frame = *iter;
 
@@ -423,6 +425,42 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
     _channel->send( fabric::CMD_CHANNEL_FRAME_ASSEMBLE )
             << context << frames;
     _updated = true;
+}
+
+struct FrameOffsetType 
+{
+    co::ObjectVersion frame;
+    Vector2i offset;
+};
+
+void ChannelUpdateVisitor::_prepareAsyncUpload( const Compound* compound,
+                                               const RenderContext& context )
+{
+    if( !compound->testInheritTask( fabric::TASK_ASSEMBLE ))
+        return;
+
+    const Frames& inputFrames = compound->getInputFrames();
+    LBASSERT( !inputFrames.empty( ));
+
+    std::vector< FrameOffsetType > frames;
+    for( Frames::const_iterator iter = inputFrames.begin();
+        iter != inputFrames.end(); ++iter )
+    {
+        Frame* frame = *iter;
+        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
+            continue;
+
+        FrameOffsetType entry;
+        entry.frame = frame->getDataVersion( _eye );
+        entry.offset = frame->getOffset();
+        frames.push_back( entry );
+    }
+
+    if( frames.empty( ))
+        return;
+
+    // prepare upload task
+    _channel->send( fabric::CMD_CHANNEL_PREPARE_ASYNC_UPLOAD ) << frames;
 }
 
 void ChannelUpdateVisitor::_updateReadback( const Compound* compound,

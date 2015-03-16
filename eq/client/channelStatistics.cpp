@@ -58,6 +58,7 @@ ChannelStatistics::ChannelStatistics( const Statistic::Type type,
         type != Statistic::CHANNEL_ASYNC_READBACK &&
         type != Statistic::CHANNEL_FRAME_TRANSMIT &&
         type != Statistic::CHANNEL_FRAME_COMPRESS &&
+        type != Statistic::CHANNEL_ASYNC_UPLOAD &&
         type != Statistic::CHANNEL_FRAME_WAIT_SENDTOKEN )
     {
         channel->getWindow()->finish();
@@ -77,6 +78,7 @@ ChannelStatistics::~ChannelStatistics()
         type != Statistic::CHANNEL_ASYNC_READBACK &&
         type != Statistic::CHANNEL_FRAME_TRANSMIT &&
         type != Statistic::CHANNEL_FRAME_COMPRESS &&
+        type != Statistic::CHANNEL_ASYNC_UPLOAD &&
         type != Statistic::CHANNEL_FRAME_WAIT_SENDTOKEN )
     {
         _owner->getWindow()->finish();

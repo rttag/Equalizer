@@ -464,6 +464,18 @@ bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
     return true;
 }
 
+void FrameData::uploadImages( const Vector2i& offset , ObjectManager* glObjects )
+{
+    LBERROR << "async upload of " << _pendingImages.size() << " images" << std::endl;
+    Images::iterator it = _pendingImages.begin();
+    for ( ; it != _pendingImages.end(); ++it )
+    {
+        Image* image = *it;
+        image->setStorageType( Frame::TYPE_TEXTURE );
+        image->upload( Frame::BUFFER_COLOR, 0, offset, glObjects );
+    }
+}
+
 std::ostream& operator << ( std::ostream& os, const FrameData& data )
 {
     return os << "frame data id " << data.getID() << "." << data.getInstanceID()
