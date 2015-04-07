@@ -592,11 +592,12 @@ namespace detail { class Channel; struct RBStat; }
 
         /** Transmit one image of a frame to one node. */
         void _transmitImage( const co::ObjectVersion& frameDataVersion,
-                             const uint128_t& nodeID,
+                             const uint128_t& frameDataID,
                              const uint128_t& netNodeID,
                              const uint64_t imageIndex,
                              const uint32_t frameNumber,
-                             const uint32_t taskID );
+                             const uint32_t taskID,
+                             const uint128_t& frameID );
 
         void _frameReadback( const uint128_t& frameID,
                              const co::ObjectVersions& frames );
@@ -604,31 +605,40 @@ namespace detail { class Channel; struct RBStat; }
                               const uint64_t imageIndex,
                               const uint32_t frameNumber,
                               const uint32_t taskID,
-                              const std::vector< uint128_t >& nodes,
-                              const std::vector< uint128_t >& netNodes );
+                              const std::vector< uint128_t >& frameDatas,
+                              const std::vector< uint128_t >& netNodes,
+                              const uint128_t& frameID );
 
-        bool _asyncFinishReadback( const std::vector< size_t >& imagePos );
+        bool _asyncFinishReadback( const std::vector< size_t >& imagePos,
+                                   const uint128_t& frameID );
 
         void _asyncTransmit( FrameDataPtr frame, const uint32_t frameNumber,
                              const uint64_t image,
-                             const std::vector<uint128_t>& nodes,
+                             const std::vector<uint128_t>& frameDatas,
                              const std::vector< uint128_t >& netNodes,
-                             const uint32_t taskID );
+                             const uint32_t taskID,
+                             const uint128_t& frameID );
 
         void _setReady( const bool async, detail::RBStat* stat );
         void _asyncSetReady( const FrameDataPtr frame, detail::RBStat* stat,
-                             const std::vector< uint128_t >& nodes,
+                             const std::vector< uint128_t >& frameDatas,
                              const std::vector< uint128_t >& netNodes );
 
         void _setReady( FrameDataPtr frame, detail::RBStat* stat,
-                        const std::vector< uint128_t >& nodes,
-                        const std::vector< uint128_t >& netNodes );
+                        const std::vector< uint128_t >& frameDatas,
+                        const std::vector< uint128_t >& netNodes,
+                        const uint128_t& frameID );
 
         /** Get the channel's current input queue. */
         co::QueueSlave* _getQueue( const UUID& queueID );
 
         void _setOutputFrames( const co::ObjectVersions& frames );
         void _resetOutputFrames();
+        void _setInputFrames( const co::ObjectVersions& frames, 
+                              fabric::Eye outputEye );
+        void _setInputFrames( const co::ObjectVersions& frames, 
+                              std::vector< fabric::Eye > eyes );
+        void _resetInputFrames();
 
         void _deleteTransferContext();
 

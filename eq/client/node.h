@@ -141,11 +141,6 @@ namespace eq
         /** @internal */
         EQ_API void dirtyClientExit();
 
-        /** @internal */
-        void prepareAsyncUpload( Channel* chan, 
-                                 const co::ObjectVersion& frame,
-                                 const Vector2i& offset );
-
     protected:
         /** @internal */
         EQ_API virtual void attach( const UUID& id, const uint32_t instanceID );
@@ -286,10 +281,6 @@ namespace eq
         /** All barriers mapped by the node. */
         lunchbox::Lockable< BarrierHash > _barriers;
 
-        typedef std::pair < Channel*, Vector2i > ChanOffsetPair;
-        typedef std::map< co::ObjectVersion, ChanOffsetPair > DatatoChanMap;
-        DatatoChanMap _dataToChanMap;
-
         typedef stde::hash_map< uint128_t, FrameDataPtr > FrameDataHash;
         typedef FrameDataHash::const_iterator FrameDataHashCIter;
         typedef FrameDataHash::iterator FrameDataHashIter;
@@ -316,8 +307,6 @@ namespace eq
         bool _cmdFrameFinish( co::ICommand& command );
         bool _cmdFrameDrawFinish( co::ICommand& command );
         bool _cmdFrameTasksFinish( co::ICommand& command );
-        bool _cmdFrameDataTransmit( co::ICommand& command );
-        bool _cmdFrameDataReady( co::ICommand& command );
         bool _cmdSetAffinity( co::ICommand& command );
 
         LB_TS_VAR( _nodeThread );

@@ -92,10 +92,6 @@ void Node::attach( const UUID& id, const uint32_t instanceID )
                      NodeFunc( this, &Node::_cmdFrameDrawFinish ), queue );
     registerCommand( fabric::CMD_NODE_FRAME_TASKS_FINISH,
                      NodeFunc( this, &Node::_cmdFrameTasksFinish ), queue );
-    registerCommand( fabric::CMD_NODE_FRAMEDATA_TRANSMIT,
-                     NodeFunc( this, &Node::_cmdFrameDataTransmit ), commandQ );
-    registerCommand( fabric::CMD_NODE_FRAMEDATA_READY,
-                     NodeFunc( this, &Node::_cmdFrameDataReady ), commandQ );
 }
 
 void Node::setDirty( const uint64_t bits )
@@ -161,8 +157,14 @@ FrameDataPtr Node::getFrameData( const co::ObjectVersion& frameDataVersion )
         _frameDatas.data[ frameDataVersion.identifier ] = data;
     }
 
-    LBASSERT( frameDataVersion.version.high() == 0 );
-    data->setVersion( frameDataVersion.version.low( ));
+    if( !data->isAttached() )
+    {
+        ClientPtr client = getClient();
+        LBCHECK( client->mapObject( data.get(), frameDataVersion ));
+    }
+    else if( data->getVersion() < frameDataVersion.version )
+        data->sync( frameDataVersion.version );
+
     return data;
 }
 
@@ -628,74 +630,6 @@ bool Node::_cmdFrameTasksFinish( co::ICommand& cmd )
 
     frameTasksFinish( frameID, frameNumber );
     return true;
-}
-
-bool Node::_cmdFrameDataTransmit( co::ICommand& cmd )
-{
-    co::ObjectICommand command( cmd );
-
-    const co::ObjectVersion frameDataVersion =
-                                             command.get< co::ObjectVersion >();
-    const PixelViewport pvp = command.get< PixelViewport >();
-    const Zoom zoom = command.get< Zoom >();
-    const uint32_t buffers = command.get< uint32_t >();
-    const uint32_t frameNumber = command.get< uint32_t >();
-    const bool useAlpha = command.get< bool >();
-    const uint8_t* data = reinterpret_cast< const uint8_t* >(
-                command.getRemainingBuffer( command.getRemainingBufferSize( )));
-
-    LBLOG( LOG_ASSEMBLY )
-        << "received image data for " << frameDataVersion << ", buffers "
-        << buffers << " pvp " << pvp << std::endl;
-
-    LBASSERT( pvp.isValid( ));
-
-    FrameDataPtr frameData = getFrameData( frameDataVersion );
-    LBASSERT( !frameData->isReady() );
-
-    NodeStatistics event( Statistic::NODE_FRAME_DECOMPRESS, this,
-                          frameNumber );
-
-    // Note on the const_cast: since the PixelData structure stores non-const
-    // pointers, we have to go non-const at some point, even though we do not
-    // modify the data.
-    LBCHECK( frameData->addImage( frameDataVersion, pvp, zoom, buffers,
-                                  useAlpha, const_cast< uint8_t* >( data )));
-    return true;
-}
-
-bool Node::_cmdFrameDataReady( co::ICommand& cmd )
-{
-    co::ObjectICommand command( cmd );
-
-    const co::ObjectVersion frameDataVersion =
-                                            command.get< co::ObjectVersion >();
-    const FrameData::Data data = command.get< FrameData::Data >();
-
-    LBLOG( LOG_ASSEMBLY ) << "received ready for " << frameDataVersion
-                          << std::endl;
-    
-    Channel* chan = _dataToChanMap[frameDataVersion].first;
-    if ( chan )
-    {
-        chan->send( getLocalNode(), fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES ) 
-            << frameDataVersion << data << _dataToChanMap[frameDataVersion].second;
-        return true;
-    }
-    
-    FrameDataPtr frameData = getFrameData( frameDataVersion );
-    LBASSERT( frameData );
-    LBASSERT( !frameData->isReady() );
-    frameData->setReady( frameDataVersion, data );
-    LBASSERT( frameData->isReady() );
-    return true;
-}
-
-void Node::prepareAsyncUpload( Channel* chan, 
-                               const co::ObjectVersion& frame,
-                               const Vector2i& offset )
-{
-    _dataToChanMap[frame] = std::make_pair( chan, offset );
 }
 
 bool Node::_cmdSetAffinity( co::ICommand& cmd )

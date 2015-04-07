@@ -32,9 +32,11 @@ namespace server
 {
 CompoundUpdateInputVisitor::CompoundUpdateInputVisitor(
     const Compound::FrameMap& outputFrames,
-    const Compound::TileQueueMap& outputQueues )
+    const Compound::TileQueueMap& outputQueues,
+    const uint32_t frameNumber)
         : _outputFrames( outputFrames )
         , _outputQueues( outputQueues )
+        , _frameNumber( frameNumber )
 {}
 
 VisitorResult CompoundUpdateInputVisitor::visit( Compound* compound )
@@ -101,6 +103,8 @@ void CompoundUpdateInputVisitor::_updateFrames( Compound* compound )
             frame->unsetData();
             continue;
         }
+
+        frame->cycleData( _frameNumber, compound );
 
         //----- Set frame parameters:
         // 1) Frame offset

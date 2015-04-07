@@ -324,9 +324,20 @@ namespace server { class FrameData; }
                        const uint32_t buffers, const bool useAlpha,
                        uint8_t* data );
         void setReady( const co::ObjectVersion& frameData,
-                       const FrameData::Data& data ); //!< @internal
+                       const FrameData::Data& data ); 
+        
+        void triggerAsyncUpload( const uint128_t& frameID, const UUID& id, 
+                                 const Vector2i& offset );
+        bool triggerUpload( const uint128_t& frameID );
+        void triggerReady( const uint128_t& frameID,
+                           const co::ObjectVersion& framedataVersion, 
+                           const FrameData::Data& data );
+        //!< @internal
 
     protected:
+        /** @internal */
+        virtual void attach( const UUID& id, const uint32_t instanceID );
+
         virtual ChangeType getChangeType() const { return INSTANCE; }
         virtual void getInstanceData( co::DataOStream& os );
         virtual void applyInstanceData( co::DataIStream& is );
@@ -359,6 +370,15 @@ namespace server { class FrameData; }
         uint32_t _colorCompressor;
         uint32_t _depthCompressor;
 
+        typedef std::map< uint128_t, std::pair< UUID, Vector2i > > 
+            AsyncUploadMapType;
+        AsyncUploadMapType _asyncUploadMap;
+
+        typedef std::map< uint128_t, 
+                          std::pair< co::ObjectVersion, FrameData::Data > >
+            ReadyMapType;
+        ReadyMapType _readyMap;
+
         struct Private;
         Private* _private; // placeholder for binary-compatible changes
 
@@ -372,6 +392,9 @@ namespace server { class FrameData; }
 
         /** Set a specific version ready. */
         void _setReady( const uint64_t version );
+
+        bool _cmdFrameDataTransmit( co::ICommand& command );
+        bool _cmdFrameDataReady( co::ICommand& command );
 
         LB_TS_VAR( _commandThread );
     };

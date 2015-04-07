@@ -31,7 +31,8 @@ namespace server
     {
     public:
         CompoundUpdateInputVisitor( const Compound::FrameMap& outputFrames,
-                                   const Compound::TileQueueMap& outputQueues );
+                                   const Compound::TileQueueMap& outputQueues,
+                                   const uint32_t frameNumber );
         virtual ~CompoundUpdateInputVisitor() {}
 
         /** Visit all compounds. */
@@ -40,6 +41,7 @@ namespace server
     private:
         const Compound::FrameMap& _outputFrames;
         const Compound::TileQueueMap& _outputQueues;
+        const uint32_t _frameNumber;
 
         void _updateQueues( const Compound* compound );
         void _updateFrames( Compound* compound );

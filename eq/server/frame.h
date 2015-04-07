@@ -51,6 +51,9 @@ namespace server
         bool hasData( const Eye eye ) const
             { return ( _frameData[ lunchbox::getIndexOfLastBit(eye) ] != 0 ); }
 
+        FrameData* getData( const Eye eye ) const 
+            { return _frameData[ lunchbox::getIndexOfLastBit(eye) ]; }
+
         /**
          * Set the frame's viewport wrt the compound (output frames) or wrt the
          * corresponding output frame (input frames).

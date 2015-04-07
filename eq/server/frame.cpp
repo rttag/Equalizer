@@ -79,9 +79,8 @@ void Frame::unsetData()
     {
         _frameData[i] = 0;
         _inputFrames[i].clear();
-        _getInputNodes( i ).clear();
+        _getInputFrameDatas( i ).clear();
         _getInputNetNodes( i ).clear();
-        _getOutputNodes( i ).clear();
         _getOutputNetNodes( i ).clear();
     }
 }
@@ -118,7 +117,6 @@ void Frame::cycleData( const uint32_t frameNumber, const Compound* compound )
         for( FramesCIter j = _inputFrames[i].begin(); j != _inputFrames[i].end(); ++j )
         {
             //deleted inputframes from Nodes
-            (*j)->_getOutputNodes( i ).clear();
             (*j)->_getOutputNetNodes( i ).clear();
         }
 
@@ -136,7 +134,7 @@ void Frame::cycleData( const uint32_t frameNumber, const Compound* compound )
         const uint32_t latency = getAutoObsolete();
         const uint32_t dataAge = data ? data->getFrameNumber() : 0;
 
-        if( data && dataAge < frameNumber-latency && frameNumber > latency )
+        if( data && dataAge < frameNumber-latency-1 && frameNumber > latency )
             // not used anymore
             _datas.pop_back();
         else // still used - allocate new data
@@ -151,9 +149,8 @@ void Frame::cycleData( const uint32_t frameNumber, const Compound* compound )
     
         _datas.push_front( data );
         _frameData[i] = data;
-        _getInputNodes( i ).clear();
+        _getInputFrameDatas( i ).clear();
         _getInputNetNodes( i ).clear();
-        _getOutputNodes( i ).clear();
         _getOutputNetNodes( i ).clear();
         if( !_masterFrameData )
             _masterFrameData = data;
@@ -175,10 +172,20 @@ void Frame::addInputFrame( Frame* frame, const Compound* compound )
             if( inputNode != getNode( ))
             {
                 co::NodePtr inputNetNode = inputNode->getNode();
+                FrameData* data = frame->getData( eye );
+                co::ObjectVersion v( data );
+
                 if( inputNetNode ) 
                 {
-                    _getInputNodes( i ).push_back( inputNode->getID( ));
+                    if ( v.identifier == 0 )
+                        LBERROR << "identifier zero ACHTUNG" << std::endl;
+                    _getInputFrameDatas( i ).push_back( v.identifier );
                     _getInputNetNodes( i ).push_back( inputNetNode->getNodeID( ));
+                }
+                else
+                {
+                    if ( v.identifier != 0 )
+                        LBERROR << "identifier nonzero ACHTUNG" << std::endl;
                 }
             }
             //add output frames too
@@ -188,7 +195,6 @@ void Frame::addInputFrame( Frame* frame, const Compound* compound )
                 co::NodePtr outputNetNode = outputNode->getNode();
                 if( outputNetNode )
                 {
-                    frame->_getOutputNodes( i ).push_back( outputNode->getID() );
                     frame->_getOutputNetNodes( i ).push_back( outputNetNode->getNodeID());
                 }
             }

@@ -238,6 +238,7 @@ LEFT                            { return EQTOKEN_LEFT; }
 RIGHT                           { return EQTOKEN_RIGHT; }
 ASSEMBLE                        { return EQTOKEN_ASSEMBLE; }
 READBACK                        { return EQTOKEN_READBACK; }
+ASYNCUPLOAD                     { return EQTOKEN_ASYNCUPLOAD; }
 COLOR                           { return EQTOKEN_COLOR; }
 DEPTH                           { return EQTOKEN_DEPTH; }
 viewport                        { return EQTOKEN_VIEWPORT; }

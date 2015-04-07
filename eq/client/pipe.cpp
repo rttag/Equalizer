@@ -500,20 +500,9 @@ Frame* Pipe::getFrame( const co::ObjectVersion& frameVersion, const Eye eye,
     LBLOG( LOG_ASSEMBLY ) << "Use " << dataVersion << std::endl;
 
     FrameDataPtr frameData = getNode()->getFrameData( dataVersion );
-    LBASSERT( frameData );
 
     if( isOutput )
-    {
-        if( !frameData->isAttached() )
-        {
-            ClientPtr client = getClient();
-            LBCHECK( client->mapObject( frameData.get(), dataVersion ));
-        }
-        else if( frameData->getVersion() < dataVersion.version )
-            frameData->sync( dataVersion.version );
-
         _impl->outputFrameDatas[ dataVersion.identifier ] = frameData;
-    }
     else
         _impl->inputFrameDatas[ dataVersion.identifier ] = frameData;
 

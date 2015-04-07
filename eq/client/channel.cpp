@@ -143,7 +143,7 @@ void Channel::attach( const UUID& id, const uint32_t instanceID )
                      transferQ );
     registerCommand( fabric::CMD_CHANNEL_PREPARE_ASYNC_UPLOAD,
                      CmdFunc( this, &Channel::_cmdPrepareAsyncUpload ),
-                     commandQ );
+                     queue );
 }
 
 co::CommandQueue* Channel::getPipeThreadQueue()
@@ -1133,7 +1133,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
                 }
             }
 
-            if( _asyncFinishReadback( nImages ))
+            if( _asyncFinishReadback( nImages, context.frameID ))
                 hasAsyncReadback = true;
         }
     }
@@ -1215,6 +1215,44 @@ void Channel::_resetOutputFrames()
     _impl->outputFrames.clear();
 }
 
+void Channel::_setInputFrames( const co::ObjectVersions& frames, 
+                               fabric::Eye outputEye )
+{
+    LB_TS_THREAD( _pipeThread );
+    LBASSERT( _impl->inputFrames.empty( ))
+
+    for( size_t i=0; i < frames.size(); ++i )
+    {
+        Pipe*  pipe  = getPipe();
+        Frame* frame = pipe->getFrame( frames[i], outputEye, false );
+        _impl->inputFrames.push_back( frame );
+        LBLOG( LOG_ASSEMBLY ) << *frame << " " << *frame->getFrameData()
+            << std::endl;
+    }
+}
+
+void Channel::_setInputFrames( const co::ObjectVersions& frames, 
+                              std::vector< fabric::Eye > eyes )
+{
+    LB_TS_THREAD( _pipeThread );
+    LBASSERT( _impl->inputFrames.empty( ))
+
+        for( size_t i=0; i < frames.size(); ++i )
+        {
+            Pipe*  pipe  = getPipe();
+            Frame* frame = pipe->getFrame( frames[i], eyes[i], false );
+            _impl->inputFrames.push_back( frame );
+            LBLOG( LOG_ASSEMBLY ) << *frame << " " << *frame->getFrameData()
+                << std::endl;
+        }
+}
+
+void Channel::_resetInputFrames()
+{
+    LB_TS_THREAD( _pipeThread );
+    _impl->inputFrames.clear();
+}
+
 //---------------------------------------------------------------------------
 // Asynchronous image readback, compression and transmission
 //---------------------------------------------------------------------------
@@ -1232,12 +1270,13 @@ void Channel::_frameReadback( const uint128_t& frameID,
 
     frameReadback( frameID );
     LBASSERT( stat->event.event.data.statistic.frameNumber > 0 );
-    const bool async = _asyncFinishReadback( nImages );
+    const bool async = _asyncFinishReadback( nImages, frameID );
     _setReady( async, stat.get( ));
     _resetOutputFrames();
 }
 
-bool Channel::_asyncFinishReadback( const std::vector< size_t >& imagePos )
+bool Channel::_asyncFinishReadback( const std::vector< size_t >& imagePos,
+                                    const uint128_t& frameID )
 {
     LB_TS_THREAD( _pipeThread );
 
@@ -1257,7 +1296,7 @@ bool Channel::_asyncFinishReadback( const std::vector< size_t >& imagePos )
         const Images& images = frameData->getImages();
         const size_t nImages = images.size();
         const Eye eye = getEye();
-        const std::vector< uint128_t >& nodes = frame->getInputNodes( eye );
+        const std::vector< uint128_t >& frameDatas = frame->getInputFrameDatas( eye );
         const std::vector< uint128_t >& netNodes = frame->getInputNetNodes(eye);
 
         for( uint64_t j = imagePos[i]; j < nImages; ++j )
@@ -1272,11 +1311,11 @@ bool Channel::_asyncFinishReadback( const std::vector< size_t >& imagePos )
 
                 send( getLocalNode(), fabric::CMD_CHANNEL_FINISH_READBACK )
                         << co::ObjectVersion( frameData ) << j << frameNumber
-                        << getTaskID() << nodes << netNodes;
+                        << getTaskID() << frameDatas << netNodes << frameID;
             }
             else // transmit images asynchronously
-                _asyncTransmit( frameData, frameNumber, j, nodes, netNodes,
-                                getTaskID( ));
+                _asyncTransmit( frameData, frameNumber, j, frameDatas, netNodes,
+                                getTaskID( ), frameID );
         }
     }
     return hasAsyncReadback;
@@ -1286,8 +1325,9 @@ void Channel::_finishReadback( const co::ObjectVersion& frameDataVersion,
                                const uint64_t imageIndex,
                                const uint32_t frameNumber,
                                const uint32_t taskID,
-                               const std::vector< uint128_t >& nodes,
-                               const std::vector< uint128_t >& netNodes )
+                               const std::vector< uint128_t >& frameDatas,
+                               const std::vector< uint128_t >& netNodes,
+                               const uint128_t& frameID )
 {
     LBLOG( LOG_TASKS|LOG_ASSEMBLY ) << "Finish readback" << std::endl;
     FrameDataPtr frameData = getNode()->getFrameData( frameDataVersion );
@@ -1303,20 +1343,21 @@ void Channel::_finishReadback( const co::ObjectVersion& frameDataVersion,
     LBASSERT( !image->hasAsyncReadback( ));
 
     // schedule async image tranmission
-    _asyncTransmit( frameData, frameNumber, imageIndex, nodes,
-                    netNodes, taskID );
+    _asyncTransmit( frameData, frameNumber, imageIndex, frameDatas,
+                    netNodes, taskID, frameID );
 }
 
 void Channel::_asyncTransmit( FrameDataPtr frame, const uint32_t frameNumber,
                               const uint64_t image,
-                              const std::vector<uint128_t>& nodes,
+                              const std::vector<uint128_t>& frameDatas,
                               const std::vector< uint128_t >& netNodes,
-                              const uint32_t taskID )
+                              const uint32_t taskID,
+                              const uint128_t& frameID )
 {
-    LBASSERT( nodes.size() == netNodes.size( ));
+    LBASSERT( frameDatas.size() == netNodes.size( ));
     std::vector< uint128_t >::const_iterator j = netNodes.begin();
-    for( std::vector< uint128_t >::const_iterator i = nodes.begin();
-         i != nodes.end(); ++i, ++j )
+    for( std::vector< uint128_t >::const_iterator i = frameDatas.begin();
+         i != frameDatas.end(); ++i, ++j )
     {
         _refFrame( frameNumber );
 
@@ -1325,16 +1366,17 @@ void Channel::_asyncTransmit( FrameDataPtr frame, const uint32_t frameNumber,
                                         << std::endl;
         send( getLocalNode(), fabric::CMD_CHANNEL_FRAME_TRANSMIT_IMAGE )
                 << co::ObjectVersion( frame ) << *i << *j << image
-                << frameNumber << taskID;
+                << frameNumber << taskID << frameID;
     }
 }
 
 void Channel::_transmitImage( const co::ObjectVersion& frameDataVersion,
-                              const uint128_t& nodeID,
+                              const uint128_t& frameDataID,
                               const uint128_t& netNodeID,
                               const uint64_t imageIndex,
                               const uint32_t frameNumber,
-                              const uint32_t taskID )
+                              const uint32_t taskID,
+                              const uint128_t& frameID )
 {
     LBLOG( LOG_TASKS|LOG_ASSEMBLY ) << "Transmit" << std::endl;
     FrameDataPtr frameData = getNode()->getFrameData( frameDataVersion );
@@ -1455,11 +1497,11 @@ void Channel::_transmitImage( const co::ObjectVersion& frameDataVersion,
     LBASSERT( image->getPixelViewport().isValid( ));
 
     co::ObjectOCommand command( co::Connections( 1, connection ),
-                                fabric::CMD_NODE_FRAMEDATA_TRANSMIT,
-                                co::COMMANDTYPE_OBJECT, nodeID,
+                                fabric::CMD_FRAMEDATA_TRANSMIT,
+                                co::COMMANDTYPE_OBJECT, frameDataID,
                                 EQ_INSTANCE_ALL );
-    command << frameDataVersion << image->getPixelViewport() << image->getZoom()
-            << commandBuffers << frameNumber << image->getAlphaUsage();
+    command << image->getPixelViewport() << image->getZoom() << commandBuffers 
+        << frameNumber << image->getAlphaUsage() << frameID;
     command.sendHeader( imageDataSize );
 
 #ifndef NDEBUG
@@ -1520,18 +1562,20 @@ void Channel::_setReady( const bool async, detail::RBStat* stat )
     {
         Frame* frame = *i;
         const Eye eye = getEye();
-        const std::vector< uint128_t >& nodes = frame->getInputNodes( eye );
+        const std::vector< uint128_t >& frameDatas = 
+            frame->getInputFrameDatas( eye );
         const std::vector< uint128_t >& netNodes = frame->getInputNetNodes(eye);
 
         if( async )
-            _asyncSetReady( frame->getFrameData(), stat, nodes, netNodes );
+            _asyncSetReady( frame->getFrameData(), stat, frameDatas, netNodes );
         else
-            _setReady( frame->getFrameData(), stat, nodes, netNodes );
+            _setReady( frame->getFrameData(), stat, frameDatas, netNodes, 
+                       getContext().frameID );
     }
 }
 
 void Channel::_asyncSetReady( const FrameDataPtr frame, detail::RBStat* stat,
-                              const std::vector< uint128_t >& nodes,
+                              const std::vector< uint128_t >& frameDatas,
                               const std::vector< uint128_t >& netNodes )
 {
     LBASSERT( stat->event.event.data.statistic.frameNumber > 0 );
@@ -1542,12 +1586,14 @@ void Channel::_asyncSetReady( const FrameDataPtr frame, detail::RBStat* stat,
     stat->ref( 0 );
 
     send( getLocalNode(), fabric::CMD_CHANNEL_FRAME_SET_READY )
-            << co::ObjectVersion( frame ) << stat << nodes << netNodes;
+            << co::ObjectVersion( frame ) << stat << frameDatas << netNodes
+            << getContext().frameID;                ;
 }
 
 void Channel::_setReady( FrameDataPtr frame, detail::RBStat* stat,
-                         const std::vector< uint128_t >& nodes,
-                         const std::vector< uint128_t >& netNodes )
+                         const std::vector< uint128_t >& frameDatas,
+                         const std::vector< uint128_t >& netNodes,
+                         const uint128_t& frameID )
 {
     LBLOG( LOG_TASKS|LOG_ASSEMBLY ) << "Set ready " << co::ObjectVersion(frame)
                                     << std::endl;
@@ -1557,7 +1603,8 @@ void Channel::_setReady( FrameDataPtr frame, detail::RBStat* stat,
     _refFrame( frameNumber );
 
     send( getLocalNode(), fabric::CMD_CHANNEL_FRAME_SET_READY_NODE )
-            << co::ObjectVersion( frame ) << nodes << netNodes << frameNumber;
+        << co::ObjectVersion( frame ) << frameDatas << netNodes << frameNumber
+        << frameID;
 
     const DrawableConfig& dc = getDrawableConfig();
     const size_t colorBytes = ( 3 * dc.colorBits + dc.alphaBits ) / 8;
@@ -1737,7 +1784,9 @@ bool Channel::_cmdFrameDraw( co::ICommand& cmd )
     ChannelStatistics event( Statistic::CHANNEL_DRAW, this, frameNumber,
                              finish ? NICEST : AUTO );
 
+    LBERROR << "Start draw frame " << context.frameID.low() << std::endl;
     frameDraw( context.frameID );
+    LBERROR << "Finish draw frame " << context.frameID.low() << std::endl;
     // Update ROI for server equalizers
     if( !getRegion().isValid( ))
         declareRegion( getPixelViewport( ));
@@ -1780,19 +1829,13 @@ bool Channel::_cmdFrameAssemble( co::ICommand& cmd )
     LBCHECK( getWindow()->createTransferWindow( ));
     LBCHECK( getPipe()->startTransferThread( ));
 
-    ChannelStatistics event( Statistic::CHANNEL_ASSEMBLE, this );
-    for( size_t i=0; i < frames.size(); ++i )
-    {
-        Pipe*  pipe  = getPipe();
-        Frame* frame = pipe->getFrame( frames[i], getEye(), false );
-        _impl->inputFrames.push_back( frame );
-        LBLOG( LOG_ASSEMBLY ) << *frame << " " << *frame->getFrameData()
-                              << std::endl;
-    }
+    if ( _impl->inputFrames.empty() ) // prepAsyncUpload?
+        _setInputFrames( frames, getEye() );
 
     frameAssemble( context.frameID );
 
-    _impl->inputFrames.clear();
+    _resetInputFrames();
+
     resetRenderContext();
     return true;
 }
@@ -1823,14 +1866,15 @@ bool Channel::_cmdFinishReadback( co::ICommand& cmd )
     const uint64_t imageIndex = command.get< uint64_t >();
     const uint32_t frameNumber = command.get< uint32_t >();
     const uint32_t taskID = command.get< uint32_t >();
-    const std::vector< uint128_t >& nodes =
+    const std::vector< uint128_t >& frameDatas =
                                       command.get< std::vector< uint128_t > >();
     const std::vector< uint128_t >& netNodes =
                                       command.get< std::vector< uint128_t > >();
+    const uint128_t frameID = command.get< uint128_t >();
 
     getWindow()->makeCurrentTransfer();
-    _finishReadback( frameData, imageIndex, frameNumber, taskID, nodes,
-                     netNodes );
+    _finishReadback( frameData, imageIndex, frameNumber, taskID, frameDatas,
+                     netNodes, frameID );
     _unrefFrame( frameNumber );
     return true;
 }
@@ -1841,15 +1885,16 @@ bool Channel::_cmdFrameSetReady( co::ICommand& cmd )
 
     const co::ObjectVersion frameDataVersion = command.get<co::ObjectVersion>();
     detail::RBStat* stat = command.get< detail::RBStat* >();
-    const std::vector< uint128_t >& nodes =
+    const std::vector< uint128_t >& frameDatas =
             command.get< std::vector< uint128_t > >();
     const std::vector< uint128_t >& netNodes =
             command.get< std::vector< uint128_t > >();
+    const uint128_t& frameID = command.get< uint128_t >();
 
     LBASSERT( stat->event.event.data.statistic.frameNumber > 0 );
 
     FrameDataPtr frameData = getNode()->getFrameData( frameDataVersion );
-    _setReady( frameData, stat, nodes, netNodes );
+    _setReady( frameData, stat, frameDatas, netNodes, frameID );
 
     const uint32_t frame = stat->event.event.data.statistic.frameNumber;
     stat->unref( 0 );
@@ -1866,13 +1911,14 @@ bool Channel::_cmdFrameTransmitImage( co::ICommand& cmd )
     const uint64_t imageIndex = command.get< uint64_t >();
     const uint32_t frameNumber = command.get< uint32_t >();
     const uint32_t taskID = command.get< uint32_t >();
+    const uint128_t frameID = command.get< uint128_t >();
 
     LBLOG( LOG_TASKS|LOG_ASSEMBLY ) << "Transmit " << command << " frame data "
                                     << frameData << " receiver " << nodeID
                                     << " on " << netNodeID << std::endl;
 
     _transmitImage( frameData, nodeID, netNodeID, imageIndex, frameNumber,
-                    taskID );
+                    taskID, frameID );
     _unrefFrame( frameNumber );
     return true;
 }
@@ -1882,26 +1928,27 @@ bool Channel::_cmdFrameSetReadyNode( co::ICommand& cmd )
     co::ObjectICommand command( cmd );
 
     const co::ObjectVersion& frameDataVersion = command.get< co::ObjectVersion >();
-    const std::vector< uint128_t >& nodes =
+    const std::vector< uint128_t >& frameDatas =
             command.get< std::vector< uint128_t > >();
     const std::vector< uint128_t >& netNodes =
             command.get< std::vector< uint128_t > >();
     const uint32_t frameNumber = command.get< uint32_t >();
+    const uint128_t& frameID = command.get< uint128_t >();
 
     co::LocalNodePtr localNode = getLocalNode();
     const FrameDataPtr frameData = getNode()->getFrameData( frameDataVersion );
 
     std::vector< uint128_t >::const_iterator j = netNodes.begin();
-    for( std::vector< uint128_t >::const_iterator i = nodes.begin();
-         i != nodes.end(); ++i, ++j )
+    for( std::vector< uint128_t >::const_iterator i = frameDatas.begin();
+         i != frameDatas.end(); ++i, ++j )
     {
         co::NodePtr toNode = localNode->connect( *j );
         if( toNode )
         {
             co::ObjectOCommand( co::Connections( 1, toNode->getConnection( )),
-                fabric::CMD_NODE_FRAMEDATA_READY,
-                co::COMMANDTYPE_OBJECT, *i, EQ_INSTANCE_ALL )
-                << frameDataVersion << frameData->_data;
+                fabric::CMD_FRAMEDATA_READY, co::COMMANDTYPE_OBJECT, *i,
+                EQ_INSTANCE_ALL ) 
+                << frameDataVersion << frameData->_data << frameID;
         }
     }
 
@@ -1997,32 +2044,31 @@ bool Channel::_cmdFrameUploadImages( co::ICommand& cmd )
         frameData->uploadImages( offset, getObjectManager() );
     }
 
-    LBERROR << "async upload finished for " << getCurrentFrame() << std::endl;
-
-    LBASSERT( frameData );
-    LBASSERT( !frameData->isReady() );
     frameData->setReady( frameDataVersion, data );
     LBASSERT( frameData->isReady() );
 
     return true;
 }
 
-struct FrameOffsetType 
-{
-    co::ObjectVersion frame;
-    Vector2i offset;
-};
-
 bool Channel::_cmdPrepareAsyncUpload( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
     
-    const std::vector< FrameOffsetType > frames = 
-        command.get< std::vector< FrameOffsetType > >();
+    const std::vector< co::ObjectVersion > frames = 
+        command.get< std::vector< co::ObjectVersion > >();
+    const std::vector< Vector2i > offsets = 
+        command.get< std::vector< Vector2i > >();
+    const std::vector< fabric::Eye > eyes = 
+        command.get< std::vector< fabric::Eye > >();
 
-    for( size_t i=0; i < frames.size(); ++i )
+    uint128_t frameID = command.get< uint128_t >();
+    _setInputFrames( frames, eyes );
+
+    for( size_t i=0; i < _impl->inputFrames.size(); ++i )
     {
-        getNode()->prepareAsyncUpload( this, frames[i].frame, frames[i].offset );
+        Frame* frame = _impl->inputFrames[i];
+        FrameDataPtr frameData = frame->getFrameData();
+        frameData->triggerAsyncUpload( frameID, getID(), offsets[i] );
     }
 
     return true;
@@ -2032,7 +2078,6 @@ bool Channel::_cmdPrepareAsyncUpload( co::ICommand& cmd )
 
 namespace lunchbox
 {
-template<> inline void byteswap( eq::FrameOffsetType &) { /*NOP*/ }
 template<> inline void byteswap( eq::detail::RBStat*& value ) { /*NOP*/ }
 }
 

@@ -1206,7 +1206,7 @@ void Compound::update( const uint32_t frameNumber )
 
     const FrameMap& outputFrames = updateOutputVisitor.getOutputFrames();
     const TileQueueMap& outputQueues = updateOutputVisitor.getOutputQueues();
-    CompoundUpdateInputVisitor updateInputVisitor( outputFrames, outputQueues );
+    CompoundUpdateInputVisitor updateInputVisitor( outputFrames, outputQueues, frameNumber );
     accept( updateInputVisitor );
 
     // commit output frames after input frames have been set

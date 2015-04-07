@@ -105,10 +105,7 @@ namespace detail { class Frame; }
 
         /** @internal @return the receiving eq::Node IDs of an output frame */
         EQFABRIC_API const std::vector< uint128_t >&
-        getInputNodes( const Eye eye ) const;
-
-        EQFABRIC_API const std::vector< uint128_t >&
-        getOutputNodes( const Eye eye ) const;
+        getInputFrameDatas( const Eye eye ) const;
 
         /** @internal @return the receiving co::Node IDs of an output frame */
         EQFABRIC_API const std::vector< uint128_t >&
@@ -127,9 +124,8 @@ namespace detail { class Frame; }
                                            const co::ObjectVersion& ov );
 
         /** @internal @return the receiving eq::Node IDs of an output frame */
-        EQFABRIC_API std::vector< uint128_t >& _getInputNodes(const unsigned i);
-
-        EQFABRIC_API std::vector< uint128_t >& _getOutputNodes(const unsigned i);
+        EQFABRIC_API std::vector< uint128_t >& 
+        _getInputFrameDatas(const unsigned i);
 
         /** @internal @return the receiving co::Node IDs of an output frame */
         EQFABRIC_API std::vector< uint128_t >&

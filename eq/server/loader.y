@@ -242,6 +242,7 @@
 %token EQTOKEN_DRAW
 %token EQTOKEN_ASSEMBLE
 %token EQTOKEN_READBACK
+%token EQTOKEN_ASYNCUPLOAD
 %token EQTOKEN_COLOR
 %token EQTOKEN_DEPTH
 %token EQTOKEN_CYCLOP
@@ -1069,6 +1070,8 @@ compoundTask:
     | EQTOKEN_DRAW     { eqCompound->enableTask( eq::fabric::TASK_DRAW ); }
     | EQTOKEN_ASSEMBLE { eqCompound->enableTask( eq::fabric::TASK_ASSEMBLE );}
     | EQTOKEN_READBACK { eqCompound->enableTask( eq::fabric::TASK_READBACK );}
+    | EQTOKEN_ASYNCUPLOAD 
+                       { eqCompound->enableTask( eq::fabric::TASK_ASYNCUPLOAD);}
 
 compoundEyes: /*null*/ | compoundEyes compoundEye
 compoundEye:

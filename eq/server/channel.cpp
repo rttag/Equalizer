@@ -19,6 +19,7 @@
 
 #include "channel.h"
 
+#include "channelAsyncUploadVisitor.h"
 #include "channelListener.h"
 #include "channelUpdateVisitor.h"
 #include "compound.h"
@@ -383,6 +384,10 @@ bool Channel::update( const uint128_t& frameID, const uint32_t frameNumber )
          i != compounds.end(); ++i )
     {
         const Compound* compound = *i;
+
+        ChannelAsyncUploadVisitor vstor( this, frameID );
+        compound->accept( vstor );
+
         ChannelUpdateVisitor visitor( this, frameID, frameNumber );
 
         visitor.setEye( EYE_CYCLOP );

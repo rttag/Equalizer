@@ -106,8 +106,6 @@ namespace fabric
         CMD_NODE_FRAME_FINISH_REPLY,
         CMD_NODE_FRAME_DRAW_FINISH,
         CMD_NODE_FRAME_TASKS_FINISH,
-        CMD_NODE_FRAMEDATA_TRANSMIT,
-        CMD_NODE_FRAMEDATA_READY,
         CMD_NODE_CUSTOM = CMD_OBJECT_CUSTOM + 20
     };
 
@@ -199,6 +197,13 @@ namespace fabric
     {
         CMD_VIEW_FREEZE_LOAD_BALANCING = CMD_OBJECT_CUSTOM, // 15
         CMD_VIEW_CUSTOM = CMD_OBJECT_CUSTOM + 5
+    };
+
+    enum FrameDataCommand
+    {
+        CMD_FRAMEDATA_TRANSMIT = CMD_OBJECT_CUSTOM,
+        CMD_FRAMEDATA_READY,
+        CMD_FRAMEDATA_CUSTOM = CMD_OBJECT_CUSTOM + 5
     };
 /** @endcond */
 }

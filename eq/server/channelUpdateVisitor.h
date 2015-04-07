@@ -82,8 +82,6 @@ namespace server
                               const fabric::RenderContext& context );
         void _updateAssemble( const Compound* compound,
                               const fabric::RenderContext& context );
-        void _prepareAsyncUpload( const Compound* compound,
-                                  const fabric::RenderContext& context );
         void _updateReadback( const Compound* compound,
                               const fabric::RenderContext& context );  
         void _updateViewStart( const Compound* compound,
