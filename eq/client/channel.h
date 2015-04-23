@@ -590,15 +590,6 @@ namespace detail { class Channel; struct RBStat; }
         /** Check for and send frame finish reply. */
         void _unrefFrame( const uint32_t frameNumber );
 
-        /** Transmit one image of a frame to one node. */
-        void _transmitImage( const co::ObjectVersion& frameDataVersion,
-                             const uint128_t& frameDataID,
-                             const uint128_t& netNodeID,
-                             const uint64_t imageIndex,
-                             const uint32_t frameNumber,
-                             const uint32_t taskID,
-                             const uint128_t& frameID );
-
         void _frameReadback( const uint128_t& frameID,
                              const co::ObjectVersions& frames );
         void _finishReadback( const co::ObjectVersion& frameDataVersion,

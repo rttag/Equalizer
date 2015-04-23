@@ -235,7 +235,8 @@ namespace detail { class Image; }
          * @version 1.0
          */
         EQ_API void setPixelData( const Frame::Buffer buffer,
-                                     const PixelData& data );
+                                  const PixelData& data, 
+                                  bool noCopy = false );
 
         /**
          * Set alpha data preservation during download and compression.

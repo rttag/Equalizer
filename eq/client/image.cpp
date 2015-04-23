@@ -843,7 +843,8 @@ void Image::validatePixelData( const Frame::Buffer buffer )
     memory.isCompressed = false;
 }
 
-void Image::setPixelData( const Frame::Buffer buffer, const PixelData& pixels )
+void Image::setPixelData( const Frame::Buffer buffer, const PixelData& pixels, 
+                          bool noCopy /*= false*/ )
 {
     Memory& memory = _impl->getMemory( buffer );
     memory.externalFormat = pixels.externalFormat;
@@ -878,6 +879,13 @@ void Image::setPixelData( const Frame::Buffer buffer, const PixelData& pixels )
     LBASSERT( size > 0 );
     if( size == 0 )
         return;
+
+    if ( noCopy )
+    {
+        memory.pixels = pixels.pixels;
+        memory.state = Memory::VALID;
+        return;
+    }
 
     if( pixels.compressorName <= EQ_COMPRESSOR_NONE )
     {

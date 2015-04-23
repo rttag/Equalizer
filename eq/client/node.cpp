@@ -154,6 +154,22 @@ FrameDataPtr Node::getFrameData( const co::ObjectVersion& frameDataVersion )
     {
         data = new FrameData;
         data->setID( frameDataVersion.identifier );
+        data->setTransmitQueue( &transmitter.getQueue() );
+        StatisticsProxy proxy;
+        proxy._config = getConfig();
+        proxy._localNode = getLocalNode();
+        proxy._id = getID();
+        proxy._serial = getSerial();
+        proxy._taskID = 0;
+        proxy._name = getName();
+        if ( proxy._name.empty() )
+        {
+            std::stringstream namestream;
+            namestream << "Node " << getID().getShortString();
+            proxy._name = namestream.str();
+        }
+
+        data->setNodeStatsProxy( proxy );
         _frameDatas.data[ frameDataVersion.identifier ] = data;
     }
 
@@ -165,6 +181,8 @@ FrameDataPtr Node::getFrameData( const co::ObjectVersion& frameDataVersion )
     else if( data->getVersion() < frameDataVersion.version )
         data->sync( frameDataVersion.version );
 
+    LBASSERT( frameDataVersion.version.high() == 0 );
+    data->setVersion( frameDataVersion.version.low( ));
     return data;
 }
 

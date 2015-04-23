@@ -105,6 +105,7 @@ set(CLIENT_HEADERS
   os.h
   pipe.h
   pixelData.h
+  proxyStatistics.h
   segment.h
   server.h
   statistic.h
@@ -113,6 +114,9 @@ set(CLIENT_HEADERS
   systemPipe.h
   systemWindow.h
   types.h
+  transferNode.h
+  transferNodeCollage.h
+  transferNodeSharedMemory.h
   view.h
   visitorResult.h
   wglTypes.h
@@ -159,6 +163,7 @@ set(CLIENT_SOURCES
   pipe.cpp
   pipeStatistics.cpp
   pixelData.cpp
+  proxyStatistics.cpp
   roiEmptySpaceFinder.cpp
   roiFinder.cpp
   roiTracker.cpp
@@ -168,6 +173,9 @@ set(CLIENT_SOURCES
   systemPipe.cpp
   systemWindow.cpp
   transferFinder.h
+  transferNode.cpp
+  transferNodeCollage.cpp
+  transferNodeSharedMemory.cpp
   version.cpp
   view.cpp
   window.cpp

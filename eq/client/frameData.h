@@ -21,6 +21,7 @@
 
 #include <eq/client/frame.h>         // enum Frame::Buffer
 #include <eq/client/types.h>
+#include <eq/client/proxyStatistics.h> // member
 
 #include <eq/fabric/pixelViewport.h> // member
 #include <eq/fabric/pixel.h>         // member
@@ -36,6 +37,8 @@ namespace eq
 namespace server { class FrameData; }
 
     class ROIFinder;
+    class TransferNode;
+    class StatisticsProxy;
 
     /**
      * A holder for multiple images.
@@ -319,10 +322,6 @@ namespace server { class FrameData; }
         } _data;
 
         /** @internal */
-        bool addImage( const co::ObjectVersion& frameDataVersion,
-                       const PixelViewport& pvp, const Zoom& zoom,
-                       const uint32_t buffers, const bool useAlpha,
-                       uint8_t* data );
         void setReady( const co::ObjectVersion& frameData,
                        const FrameData::Data& data ); 
         
@@ -332,7 +331,28 @@ namespace server { class FrameData; }
         void triggerReady( const uint128_t& frameID,
                            const co::ObjectVersion& framedataVersion, 
                            const FrameData::Data& data );
+
+        /** Transmit one image of a frame to one node. */
+        void transmitImage( const uint128_t& netNodeID,
+                            const uint64_t& imageIndex,
+                            const uint32_t frameNumber,
+                            const uint32_t taskID,
+                            const uint128_t& frameID,
+                            StatisticsProxy& stats,
+                            bool requestToken );
         //!< @internal
+
+        /** Allocate a new image. */
+        Image* newDefaultImage();
+
+        /** Add an image to pending images. */
+        void addPendingImage( Image* image );
+
+        /** set transmit Q */
+        void setTransmitQueue( co::CommandQueue* queue );
+
+        /** set stats proxy for node statistics */
+        void setNodeStatsProxy( const StatisticsProxy& proxy );
 
     protected:
         /** @internal */
@@ -342,6 +362,8 @@ namespace server { class FrameData; }
         virtual void getInstanceData( co::DataOStream& os );
         virtual void applyInstanceData( co::DataIStream& is );
 
+        void _setupTransferNode( const co::NodeID& netNodeID );
+
     private:
         Images _images;
         Images _imageCache;
@@ -349,7 +371,7 @@ namespace server { class FrameData; }
 
         ROIFinder* _roiFinder;
 
-        Images _pendingImages;
+        lunchbox::Lockable< Images, lunchbox::SpinLock > _pendingImages;
 
         uint64_t _version; //!< The current version
 
@@ -379,6 +401,12 @@ namespace server { class FrameData; }
             ReadyMapType;
         ReadyMapType _readyMap;
 
+        TransferNode* _transferNode;
+
+        co::CommandQueue* _transmitQueue; 
+
+        StatisticsProxy _nodeStatsProxy;
+
         struct Private;
         Private* _private; // placeholder for binary-compatible changes
 
@@ -395,6 +423,8 @@ namespace server { class FrameData; }
 
         bool _cmdFrameDataTransmit( co::ICommand& command );
         bool _cmdFrameDataReady( co::ICommand& command );
+        bool _cmdCreateReceiver( co::ICommand& cmd );
+        bool _cmdCreateReceiverReply( co::ICommand& cmd );
 
         LB_TS_VAR( _commandThread );
     };

@@ -1463,7 +1463,7 @@ void Compound::updateInheritTasks()
         }
         else
             _inherit.tasks = fabric::TASK_CLEAR | fabric::TASK_ASSEMBLE |
-                             fabric::TASK_READBACK;
+                             fabric::TASK_READBACK | fabric::TASK_ASYNCUPLOAD;
     }
     else
         _inherit.tasks = _data.tasks;
@@ -1611,6 +1611,7 @@ std::ostream& operator << ( std::ostream& os, const Compound& compound )
             ( tasks &  fabric::TASK_DRAW ))  os << " DRAW";
         if( tasks &  fabric::TASK_ASSEMBLE ) os << " ASSEMBLE";
         if( tasks &  fabric::TASK_READBACK ) os << " READBACK";
+        if( tasks &  fabric::TASK_ASYNCUPLOAD ) os << " ASYNCUPLOAD";
         os << " ]" << std::endl;
     }
 

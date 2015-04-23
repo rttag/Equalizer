@@ -19,16 +19,17 @@
 
 #include "frameData.h"
 
-#include "nodeStatistics.h"
-#include "channelStatistics.h"
+#include "proxyStatistics.h"
 #include "exception.h"
 #include "image.h"
 #include "log.h"
 #include "pixelData.h"
 #include "roiFinder.h"
+#include "transferNode.h"
 
 #include <eq/fabric/drawableConfig.h>
 #include <eq/fabric/commands.h>
+#include <eq/fabric/client.h>
 #include <eq/util/objectManager.h>
 #include <co/commandFunc.h>
 #include <co/connectionDescription.h>
@@ -36,10 +37,12 @@
 #include <co/dataOStream.h>
 #include <co/objectOCommand.h>
 #include <co/objectICommand.h>
+#include <co/sendToken.h>
 #include <lunchbox/monitor.h>
 #include <lunchbox/scopedMutex.h>
 #include <lunchbox/plugins/compressor.h>
 
+#include <boost/bind.hpp>
 #include <algorithm>
 
 namespace eq
@@ -55,6 +58,9 @@ FrameData::FrameData()
         , _colorCompressor( EQ_COMPRESSOR_AUTO )
         , _depthCompressor( EQ_COMPRESSOR_AUTO )
         , _asyncUploadMap()
+        , _readyMap()
+        , _transferNode( 0 )
+        , _transmitQueue( 0 )
 {
     _roiFinder = new ROIFinder();
 }
@@ -65,10 +71,12 @@ void FrameData::attach( const UUID& id, const uint32_t instanceID )
 
     co::CommandQueue* commandQ = getLocalNode()->getCommandThreadQueue();
 
-    registerCommand( fabric::CMD_FRAMEDATA_TRANSMIT,
-        CmdFunc( this, &FrameData::_cmdFrameDataTransmit ), commandQ );
     registerCommand( fabric::CMD_FRAMEDATA_READY,
         CmdFunc( this, &FrameData::_cmdFrameDataReady ), commandQ );
+    registerCommand( fabric::CMD_FRAMEDATA_CREATE_RECEIVER,
+        CmdFunc( this, &FrameData::_cmdCreateReceiver ), _transmitQueue );
+    registerCommand( fabric::CMD_FRAMEDATA_CREATE_RECEIVER_REPLY,
+        CmdFunc( this, &FrameData::_cmdCreateReceiverReply ), 0 );
 }
 
 FrameData::~FrameData()
@@ -83,6 +91,11 @@ FrameData::~FrameData()
         delete image;
     }
     _imageCache.clear();
+
+    if ( _transferNode )
+    {
+        delete _transferNode;
+    }
 
     delete _roiFinder;
     _roiFinder = 0;
@@ -201,6 +214,18 @@ Image* FrameData::newImage( const eq::Frame::Type type,
     return image;
 }
 
+Image* FrameData::newDefaultImage()
+{
+    return _allocImage( Frame::TYPE_MEMORY, DrawableConfig(), false );
+}
+
+void FrameData::addPendingImage( Image* image )
+{
+    _pendingImages.lock.set();
+    _pendingImages->push_back( image );
+    _pendingImages.lock.unset();
+}
+
 Image* FrameData::_allocImage( const eq::Frame::Type type,
                                const DrawableConfig& config,
                                const bool setQuality_ )
@@ -263,7 +288,7 @@ void FrameData::readback( const Frame& frame,
                           const DrawableConfig& config )
 {
     const Images& images = startReadback( frame, glObjects, config,
-                                        PixelViewports( 1, getPixelViewport( )));
+                                       PixelViewports( 1, getPixelViewport( )));
 
     for( ImagesCIter i = images.begin(); i != images.end(); ++i )
         (*i)->finishReadback( frame.getZoom(), glObjects->glewGetContext( ));
@@ -344,7 +369,7 @@ void FrameData::setVersion( const uint64_t version )
 
 void FrameData::waitReady( const uint32_t timeout ) const
 {
-    if( !_readyVersion.timedWaitGE( getVersion().low() , timeout ))
+    if( !_readyVersion.timedWaitGE( _version, timeout ))
         throw Exception( Exception::TIMEOUT_INPUTFRAME );
 }
 
@@ -363,7 +388,9 @@ void FrameData::setReady( const co::ObjectVersion& frameData,
               _readyVersion + 1 == frameData.version.low( ));
     LBASSERT( _version == frameData.version.low( ));
 
-    _images.swap( _pendingImages );
+    _pendingImages.lock.set();
+    _images.swap( _pendingImages.data );
+    _pendingImages.lock.unset();
     _data = data;
     _setReady( frameData.version.low());
 
@@ -413,79 +440,15 @@ void FrameData::removeListener( lunchbox::Monitor<uint32_t>& listener )
     _listeners->erase( i );
 }
 
-bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
-                          const PixelViewport& pvp, const Zoom& zoom,
-                          const uint32_t buffers_, const bool useAlpha,
-                          uint8_t* data )
+void FrameData::uploadImages( const Vector2i& offset , ObjectManager* glObjects)
 {
-    Image* image = _allocImage( Frame::TYPE_MEMORY, DrawableConfig(),
-                                false /* set quality */ );
+    _pendingImages.lock.set();
+    Images pendingCopy( _pendingImages.data );
+    _pendingImages.lock.unset();
 
-    image->setPixelViewport( pvp );
-    image->setAlphaUsage( useAlpha );
-
-    Frame::Buffer buffers[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
-    for( unsigned i = 0; i < 2; ++i )
+    Images::iterator it = pendingCopy.begin();
+    for ( ; it != pendingCopy.end(); ++it )
     {
-        const Frame::Buffer buffer = buffers[i];
-
-        if( buffers_ & buffer )
-        {
-            PixelData pixelData;
-            const ImageHeader* header = reinterpret_cast<ImageHeader*>( data );
-            pixelData.internalFormat  = header->internalFormat;
-            pixelData.externalFormat  = header->externalFormat;
-            pixelData.pixelSize       = header->pixelSize;
-            pixelData.pvp             = header->pvp;
-            pixelData.compressorName  = header->compressorName;
-            pixelData.compressorFlags = header->compressorFlags;
-            pixelData.isCompressed =
-                pixelData.compressorName > EQ_COMPRESSOR_NONE;
-
-            const uint32_t nChunks    = header->nChunks;
-            data += sizeof( ImageHeader );
-
-            if( pixelData.isCompressed )
-            {
-                pixelData.compressedSize.resize( nChunks );
-                pixelData.compressedData.resize( nChunks );
-
-                for( uint32_t j = 0; j < nChunks; ++j )
-                {
-                    const uint64_t size = *reinterpret_cast< uint64_t*>( data );
-                    data += sizeof( uint64_t );
-
-                    pixelData.compressedSize[j] = size;
-                    pixelData.compressedData[j] = data;
-                    data += size;
-                }
-            }
-            else
-            {
-                const uint64_t size = *reinterpret_cast< uint64_t*>( data );
-                data += sizeof( uint64_t );
-                pixelData.pixels = data;
-                data += size;
-                LBASSERT( size == pixelData.pvp.getArea()*pixelData.pixelSize );
-            }
-
-            image->setZoom( zoom );
-            image->setQuality( buffer, header->quality );
-            image->setPixelData( buffer, pixelData );
-        }
-    }
-
-    LBASSERT( _readyVersion < frameDataVersion.version.low( ));
-    _pendingImages.push_back( image );
-    return true;
-}
-
-void FrameData::uploadImages( const Vector2i& offset , ObjectManager* glObjects )
-{
-    Images::iterator it = _pendingImages.begin();
-    for ( ; it != _pendingImages.end(); ++it )
-    {
-        LBERROR << "upload of one image" << std::endl;
         Image* image = *it;
         image->setStorageType( Frame::TYPE_TEXTURE );
         image->upload( Frame::BUFFER_COLOR, 0, offset, glObjects );
@@ -515,7 +478,6 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
     if ( _asyncUploadMap.find( frameID ) == _asyncUploadMap.end() )
         return false;
 
-    LBERROR << "upload " << frameID.low() << " " << this << std::endl;
     const UUID& chanID = _asyncUploadMap[ frameID ].first;
     const Vector2i& offset = _asyncUploadMap[ frameID ].second;
     const co::ObjectVersion& ov = _readyMap[ frameID ].first;
@@ -527,47 +489,6 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
 
     _readyMap.erase( frameID );
     _asyncUploadMap.erase( frameID );
-    return true;
-}
-
-
-bool FrameData::_cmdFrameDataTransmit( co::ICommand& cmd )
-{
-    co::ObjectICommand command( cmd );
-
-    const PixelViewport pvp = command.get< PixelViewport >();
-    const Zoom zoom = command.get< Zoom >();
-    const uint32_t buffers = command.get< uint32_t >();
-    const uint32_t frameNumber = command.get< uint32_t >();
-    const bool useAlpha = command.get< bool >();
-    const uint128_t frameID = command.get< uint128_t >();
-    const uint8_t* data = reinterpret_cast< const uint8_t* >(
-        command.getRemainingBuffer( command.getRemainingBufferSize( )));
-
-    LBERROR << "frame " << frameID.low() << " " << this << std::endl;
-
-    LBLOG( LOG_ASSEMBLY )
-        << "received image data for " << co::ObjectVersion( this ) 
-        << ", buffers " << buffers << " pvp " << pvp << std::endl;
-
-    LBASSERT( pvp.isValid( ));
-    LBASSERT( isReady() );
-
-    //--------------TODO DECOMPRESS STATS
-    //
-    //
-    //NodeStatistics event( Statistic::NODE_FRAME_DECOMPRESS, this,
-    //    frameNumber );
-    //
-    //
-    //
-    //--------------TODO DECOMPRESS STATS
-
-    // Note on the const_cast: since the PixelData structure stores non-const
-    // pointers, we have to go non-const at some point, even though we do not
-    // modify the data.
-    LBCHECK( addImage( co::ObjectVersion( this ), pvp, zoom, buffers,
-        useAlpha, const_cast< uint8_t* >( data )));
     return true;
 }
 
@@ -585,14 +506,139 @@ bool FrameData::_cmdFrameDataReady( co::ICommand& cmd )
 
     LBASSERT( !isReady() );
 
-    LBERROR << "ready " << frameID.low() << " " << this << std::endl;
-
     triggerReady( frameID, frameDataVersion, data );
     return true;
-
+    
+    //TODO sync upload
     setReady( frameDataVersion, data );
     LBASSERT( isReady() );
     return true;
+}
+
+void FrameData::transmitImage( const uint128_t& netNodeID,
+                               const uint64_t& imageIndex,
+                               const uint32_t frameNumber,
+                               const uint32_t taskID,
+                               const uint128_t& frameID,
+                               StatisticsProxy& stats,
+                               bool requestToken )
+{
+    LBLOG( LOG_TASKS|LOG_ASSEMBLY ) << "Transmit" << std::endl;
+
+    if( getBuffers() == 0 )
+    {
+        LBWARN << "No buffers for frame data" << std::endl;
+        return;
+    }
+
+    ProxyStatistics transmitEvent( Statistic::CHANNEL_FRAME_TRANSMIT, 
+        &stats, frameNumber );
+    transmitEvent.event.data.statistic.task = taskID;
+
+    const Images& images = getImages();
+    Image* image = images[ imageIndex ];
+    LBASSERT( images.size() > imageIndex );
+
+    if( image->getStorageType() == Frame::TYPE_TEXTURE )
+    {
+        LBWARN << "Can't transmit image of type TEXTURE" << std::endl;
+        LBUNIMPLEMENTED;
+        return;
+    }
+
+    if ( !_transferNode )
+    {
+        _setupTransferNode( netNodeID );
+        if ( !_transferNode )
+            return;
+    }
+
+    _transferNode->setStatsProxy( &stats );
+    _transferNode->setTokenHint( requestToken );
+    _transferNode->sendImage( image, frameNumber, taskID, frameID );
+}
+
+void FrameData::_setupTransferNode( const co::NodeID& netNodeID )
+{
+    co::LocalNodePtr localNode = getLocalNode();
+    co::NodePtr toNode = localNode->connect( netNodeID );
+    if( !toNode || !toNode->isReachable( ))
+    {
+        LBWARN << "Can't connect node " << netNodeID
+            << " to send image data" << std::endl;
+        return;
+    }
+
+    lunchbox::Bufferb buffer;
+    _transferNode = TransferNode::createTransmitter( toNode, getLocalNode());
+
+    if ( !_transferNode )
+        return;
+
+    const uint32_t reqID = localNode->registerRequest();
+    send( toNode, fabric::CMD_FRAMEDATA_CREATE_RECEIVER ) 
+        << reqID << _transferNode->getType() << _transferNode->getID();
+
+    bool ok = 0;
+    localNode->waitRequest( reqID, ok );
+    if ( !_transferNode->finishSetupTransmitter( ok ))
+    {
+        delete _transferNode;
+        _transferNode = 0;
+        return;
+    }
+}
+
+bool FrameData::_cmdCreateReceiver( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    uint32_t reqID = command.get<uint32_t>();
+    TransferNode::Type type = command.get<TransferNode::Type>();
+    const UUID& id = command.get<UUID>();
+
+    _transferNode = TransferNode::createReceiver( getLocalNode(), type, id );
+
+    bool ok = false;
+    if ( _transferNode )
+        ok = _transferNode->setupReceiver( command );
+
+    if ( ok )
+    {
+        _transferNode->setCreateImageFunc( 
+            boost::bind( &FrameData::newDefaultImage, this ));
+        _transferNode->setAddImageFunc( 
+            boost::bind( &FrameData::addPendingImage, this, _1 ));
+        _transferNode->setStatsProxy( &_nodeStatsProxy );
+    }
+    else
+    {
+        delete _transferNode;
+        _transferNode = 0;
+    }
+
+    send( command.getNode(), fabric::CMD_FRAMEDATA_CREATE_RECEIVER_REPLY ) 
+        << reqID << ok;
+    return true;
+}
+
+bool FrameData::_cmdCreateReceiverReply( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    uint32_t reqID = command.get<uint32_t>();
+    bool ok = command.get<bool>();
+
+    getLocalNode()->serveRequest( reqID, ok );
+    return true;
+}
+
+void FrameData::setTransmitQueue( co::CommandQueue* queue )
+{
+    _transmitQueue = queue;
+}
+
+void FrameData::setNodeStatsProxy( const StatisticsProxy& proxy )
+{
+    _nodeStatsProxy = proxy;
 }
 
 
