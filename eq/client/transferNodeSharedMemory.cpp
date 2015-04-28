@@ -40,6 +40,8 @@ void TransferNodeSharedMemory::attach( const UUID& id, const uint32_t instanceID
 
     registerCommand( fabric::CMD_TRANSFERNODE_CLEAR,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdClear ), commandQ );
+    registerCommand( fabric::CMD_TRANSFERNODE_CLEAR_REPLY,
+        CmdFunc( this, &TransferNodeSharedMemory::_cmdClearReply ), 0 );
     registerCommand( fabric::CMD_TRANSFERNODE_MAPMEM,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdMapMemory ), commandQ );
     registerCommand( fabric::CMD_TRANSFERNODE_MAPMEM_REPLY,
@@ -73,15 +75,18 @@ void TransferNodeSharedMemory::clear()
 bool TransferNodeSharedMemory::_cmdClear( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
+    uint32_t reqID = command.get<uint32_t>();
     clear();
+
+    send( cmd.getNode(), fabric::CMD_TRANSFERNODE_CLEAR_REPLY ) << reqID;
 
     return true;
 }
 
 bool TransferNodeSharedMemory::setupTransmitter()
 {
-    // default size
-    const size_t size = 1920 * 1200 * 5 * sizeof( float ) 
+    // default size 4 channel 1080p half float, no depth buffer
+    const size_t size = 1920 * 1080 * 2 * sizeof( float ) 
         + sizeof( ImageMetaData );
 
     std::stringstream name;
@@ -229,9 +234,18 @@ void TransferNodeSharedMemory::resizeMemory( const Image* const image )
     
     if ( _memory->get_size() < size )
     {
-        uint64_t newsize = _memory->get_size() * 2;
-        send( _targetNode, fabric::CMD_TRANSFERNODE_CLEAR );
+        uint64_t newsize = _memory->get_size();
+        while ( newsize < size )
+            newsize <<= 1;
+
+        LBINFO << "resizing shared memory to " << newsize << " bytes" 
+               << std::endl;
+        
+        uint32_t reqID = getLocalNode()->registerRequest();
+        send( _targetNode, fabric::CMD_TRANSFERNODE_CLEAR ) << reqID;
         clear();
+
+        getLocalNode()->waitRequest( reqID );
 
         _memory = new bip::managed_windows_shared_memory( bip::create_only,
             _name.c_str(), newsize );
@@ -242,7 +256,7 @@ void TransferNodeSharedMemory::resizeMemory( const Image* const image )
             return;
         }
         
-        uint32_t reqID = getLocalNode()->registerRequest();
+        reqID = getLocalNode()->registerRequest();
         send( _targetNode, fabric::CMD_TRANSFERNODE_MAPMEM ) << reqID;
 
         bool ok = 0;
@@ -273,6 +287,15 @@ bool TransferNodeSharedMemory::_cmdMapMemory( co::ICommand& cmd )
     return true;
 }
 
+bool TransferNodeSharedMemory::_cmdClearReply( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    uint32_t reqID = command.get< uint32_t >();
+
+    getLocalNode()->serveRequest( reqID );
+    return true;
+}
+
 bool TransferNodeSharedMemory::_cmdMapMemoryReply( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
@@ -280,7 +303,6 @@ bool TransferNodeSharedMemory::_cmdMapMemoryReply( co::ICommand& cmd )
     bool ok = command.get< bool >();
 
     getLocalNode()->serveRequest( reqID, ok );
-
     return true;
 }
 

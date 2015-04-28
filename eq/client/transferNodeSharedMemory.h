@@ -58,6 +58,7 @@ private:
     void clear();
 
     bool _cmdClear( co::ICommand& cmd );
+    bool _cmdClearReply( co::ICommand& cmd );
     bool _cmdMapMemory( co::ICommand& cmd );
     bool _cmdMapMemoryReply( co::ICommand& cmd );
 

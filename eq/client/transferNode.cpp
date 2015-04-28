@@ -47,11 +47,15 @@ TransferNode* TransferNode::createTransmitter( co::NodePtr toNode,
 #ifdef _WIN32
     if ( description->type == co::ConnectionType::CONNECTIONTYPE_NAMEDPIPE )
     {
+        LBINFO << "Creating shared memory transfer node for " 
+            << toNode->getNodeID() << std::endl;
         transmitter = new TransferNodeSharedMemory;
     }
 #endif
     if ( !transmitter )
     {
+        LBINFO << "Creating collage based transfer node for "
+               << toNode->getNodeID() << std::endl;
         transmitter = new TransferNodeCollage;
     }
 
@@ -60,12 +64,14 @@ TransferNode* TransferNode::createTransmitter( co::NodePtr toNode,
     bool ret = localNode->registerObject( transmitter );
     if ( !ret )
     {
+        LBERROR << "registering of transfer node failed" << std::endl;
         delete transmitter;
         return 0;
     }
 
     if ( !transmitter->setupTransmitter() )
     {
+        LBERROR << "setup of transfer node unsuccessful" << std::endl;
         delete transmitter;
         transmitter = 0;
     }
@@ -82,10 +88,12 @@ TransferNode* TransferNode::createReceiver( co::LocalNodePtr localNode,
     {
 #ifdef _WIN32
     case TransferNode::Type::SHAREDMEM:
+        LBINFO << "creating shared memory receiver node" << std::endl;
         transferNode = new TransferNodeSharedMemory;
         break;
 #endif
     case TransferNode::Type::COLLAGE:
+        LBINFO << "creating collage based receiver node" << std::endl;
         transferNode = new TransferNodeCollage;
         break;
     case TransferNode::Type::INVALID:
