@@ -1644,6 +1644,7 @@ bool Channel::_cmdFrameAssemble( co::ICommand& cmd )
     LBCHECK( getWindow()->createTransferWindow( ));
     LBCHECK( getPipe()->startTransferThread( ));
 
+    ChannelStatistics event( Statistic::CHANNEL_ASSEMBLE, this );
     if ( _impl->inputFrames.empty() ) // prepAsyncUpload?
         _setInputFrames( frames, getEye() );
 
@@ -1876,6 +1877,7 @@ bool Channel::_cmdFrameUploadImages( co::ICommand& cmd )
         ChannelStatistics uploadEvent( Statistic::CHANNEL_ASYNC_UPLOAD, this, 
             getCurrentFrame() );
         frameData->uploadImages( offset, getObjectManager() );
+        glFinish();
     }
 
     frameData->setReady( frameDataVersion, data );

@@ -147,6 +147,8 @@ co::Barrier* Node::getBarrier( const co::ObjectVersion barrier )
 
 FrameDataPtr Node::getFrameData( const co::ObjectVersion& frameDataVersion )
 {
+    LBASSERT( frameDataVersion.version.high() == 0 );
+
     lunchbox::ScopedWrite mutex( _frameDatas );
     FrameDataPtr data = _frameDatas.data[ frameDataVersion.identifier ];
 
@@ -177,12 +179,14 @@ FrameDataPtr Node::getFrameData( const co::ObjectVersion& frameDataVersion )
     {
         ClientPtr client = getClient();
         LBCHECK( client->mapObject( data.get(), frameDataVersion ));
+        data->setVersion( frameDataVersion.version.low( ));
     }
     else if( data->getVersion() < frameDataVersion.version )
+    {
         data->sync( frameDataVersion.version );
+        data->setVersion( frameDataVersion.version.low( ));
+    }
 
-    LBASSERT( frameDataVersion.version.high() == 0 );
-    data->setVersion( frameDataVersion.version.low( ));
     return data;
 }
 

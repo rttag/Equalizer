@@ -392,6 +392,8 @@ void FrameData::setReady( const co::ObjectVersion& frameData,
     _images.swap( _pendingImages.data );
     _pendingImages.lock.unset();
     _data = data;
+
+    LBASSERT( frameData.version.high() == 0 );
     _setReady( frameData.version.low());
 
     LBLOG( LOG_ASSEMBLY ) << this << " applied v"
