@@ -457,7 +457,7 @@ void FrameData::uploadImages( const Vector2i& offset , ObjectManager* glObjects)
     }
 }
 
-void FrameData::triggerAsyncUpload( const uint128_t& frameID, const UUID& id, 
+void FrameData::prepareUpload( const uint128_t& frameID, const UUID& id, 
                                     const Vector2i& offset )
 {
     _asyncUploadMap[frameID] = std::make_pair(id, offset);
@@ -484,11 +484,21 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
     const Vector2i& offset = _asyncUploadMap[ frameID ].second;
     const co::ObjectVersion& ov = _readyMap[ frameID ].first;
     const FrameData::Data& data = _readyMap[ frameID ].second;
-    
-    co::ObjectOCommand( getLocalNode().get(), getLocalNode(), 
-        fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES, co::COMMANDTYPE_OBJECT, 
-        chanID, EQ_INSTANCE_ALL ) << ov << data << offset;
 
+    if ( chanID != UUID::ZERO )
+    {
+        co::ObjectOCommand( getLocalNode().get(), getLocalNode(), 
+            fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES, co::COMMANDTYPE_OBJECT, 
+            chanID, EQ_INSTANCE_ALL ) << ov << data << offset;
+    }
+    else
+    {
+        //sync upload
+        setReady( ov, data );
+        LBASSERT( isReady() );
+        return true;
+    }
+    
     _readyMap.erase( frameID );
     _asyncUploadMap.erase( frameID );
     return true;
@@ -509,11 +519,6 @@ bool FrameData::_cmdFrameDataReady( co::ICommand& cmd )
     LBASSERT( !isReady() );
 
     triggerReady( frameID, frameDataVersion, data );
-    return true;
-    
-    //TODO sync upload
-    setReady( frameDataVersion, data );
-    LBASSERT( isReady() );
     return true;
 }
 

@@ -642,7 +642,7 @@ namespace detail { class Channel; struct RBStat; }
         bool _cmdFrameDraw( co::ICommand& command );
         bool _cmdFrameDrawFinish( co::ICommand& command );
         bool _cmdFrameAssemble( co::ICommand& command );
-        bool _cmdPrepareAsyncUpload( co::ICommand& command );
+        bool _cmdPrepareUpload( co::ICommand& command );
         bool _cmdFrameReadback( co::ICommand& command );
         bool _cmdFinishReadback( co::ICommand& command );
         bool _cmdFrameSetReady( co::ICommand& command );

@@ -325,7 +325,7 @@ namespace server { class FrameData; }
         void setReady( const co::ObjectVersion& frameData,
                        const FrameData::Data& data ); 
         
-        void triggerAsyncUpload( const uint128_t& frameID, const UUID& id, 
+        void prepareUpload( const uint128_t& frameID, const UUID& id, 
                                  const Vector2i& offset );
         bool triggerUpload( const uint128_t& frameID );
         void triggerReady( const uint128_t& frameID,

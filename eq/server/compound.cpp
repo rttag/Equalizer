@@ -1463,7 +1463,7 @@ void Compound::updateInheritTasks()
         }
         else
             _inherit.tasks = fabric::TASK_CLEAR | fabric::TASK_ASSEMBLE |
-                             fabric::TASK_READBACK | fabric::TASK_ASYNCUPLOAD;
+                             fabric::TASK_READBACK;
     }
     else
         _inherit.tasks = _data.tasks;

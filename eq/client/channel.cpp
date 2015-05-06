@@ -142,8 +142,8 @@ void Channel::attach( const UUID& id, const uint32_t instanceID )
     registerCommand( fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES,
                      CmdFunc( this, &Channel::_cmdFrameUploadImages ),
                      transferQ );
-    registerCommand( fabric::CMD_CHANNEL_PREPARE_ASYNC_UPLOAD,
-                     CmdFunc( this, &Channel::_cmdPrepareAsyncUpload ),
+    registerCommand( fabric::CMD_CHANNEL_PREPARE_UPLOAD,
+                     CmdFunc( this, &Channel::_cmdPrepareUpload ),
                      queue );
 }
 
@@ -1886,7 +1886,7 @@ bool Channel::_cmdFrameUploadImages( co::ICommand& cmd )
     return true;
 }
 
-bool Channel::_cmdPrepareAsyncUpload( co::ICommand& cmd )
+bool Channel::_cmdPrepareUpload( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
     
@@ -1898,13 +1898,15 @@ bool Channel::_cmdPrepareAsyncUpload( co::ICommand& cmd )
         command.get< std::vector< fabric::Eye > >();
 
     uint128_t frameID = command.get< uint128_t >();
+    bool async = command.get<bool>();
     _setInputFrames( frames, eyes );
 
     for( size_t i=0; i < _impl->inputFrames.size(); ++i )
     {
         Frame* frame = _impl->inputFrames[i];
         FrameDataPtr frameData = frame->getFrameData();
-        frameData->triggerAsyncUpload( frameID, getID(), offsets[i] );
+        const UUID& id = async ? getID() : UUID::ZERO;
+        frameData->prepareUpload( frameID, id, offsets[i] );
     }
 
     return true;

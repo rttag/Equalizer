@@ -56,8 +56,8 @@ set(SOURCES
     canvas.cpp
     changeLatencyVisitor.h
     channel.cpp
-    channelAsyncUploadVisitor.cpp
-    channelAsyncUploadVisitor.h
+    channelUploadVisitor.cpp
+    channelUploadVisitor.h
     channelListener.h
     channelStopFrameVisitor.h
     channelUpdateVisitor.cpp
