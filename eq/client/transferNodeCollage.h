@@ -16,9 +16,6 @@ class TransferNodeCollage : public TransferNode
                             const co::uint128_t& frameID );
     virtual bool receiveImage( Image* image, co::ObjectICommand& cmd );
 
-    virtual void getInstanceData( co::DataOStream& os );
-    virtual void applyInstanceData( co::DataIStream& is );
-
 protected:
     friend class TransferNode;
 

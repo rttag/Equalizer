@@ -53,12 +53,6 @@ namespace detail { class Frame; }
             TYPE_TEXTURE    //!< use a GL texture to store pixel data
         };
 
-        enum SendType
-        {
-            TYPE_NETWORK,
-            TYPE_SHARED_MEMORY
-        };
-
         /** Construct a new frame. @version 1.0 */
         EQFABRIC_API Frame();
 

@@ -160,7 +160,7 @@ bool TransferNode::_cmdReceiveImage( co::ICommand& cmd )
     return true;
 }
 
-TransferNode::Type TransferNode::getType()
+TransferNode::Type TransferNode::getType() const
 {
     return _type;
 }
@@ -171,6 +171,14 @@ co::ObjectOCommand TransferNode::initiateSend( uint32_t frameNumber )
         fabric::CMD_TRANSFERNODE_TRANSFER_IMAGE ));
     cmd << frameNumber;
     return cmd;
+}
+
+void TransferNode::getInstanceData( co::DataOStream& /*os*/ )
+{
+}
+
+void TransferNode::applyInstanceData( co::DataIStream& /*is*/ )
+{
 }
 
 }

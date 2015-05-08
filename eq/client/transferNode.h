@@ -43,7 +43,10 @@ public:
     typedef boost::function< void ( Image* ) > AddImageFunc;
     void setCreateImageFunc( CreateImageFunc func );
     void setAddImageFunc( AddImageFunc func );
-    Type getType();
+    Type getType() const;
+
+    virtual void getInstanceData( co::DataOStream& os );
+    virtual void applyInstanceData( co::DataIStream& is );
 
 protected:
     virtual void attach( const UUID& id, const uint32_t instanceID );

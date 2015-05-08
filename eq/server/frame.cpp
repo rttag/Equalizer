@@ -177,15 +177,8 @@ void Frame::addInputFrame( Frame* frame, const Compound* compound )
 
                 if( inputNetNode ) 
                 {
-                    if ( v.identifier == 0 )
-                        LBERROR << "identifier zero ACHTUNG" << std::endl;
                     _getInputFrameDatas( i ).push_back( v.identifier );
                     _getInputNetNodes( i ).push_back( inputNetNode->getNodeID( ));
-                }
-                else
-                {
-                    if ( v.identifier != 0 )
-                        LBERROR << "identifier nonzero ACHTUNG" << std::endl;
                 }
             }
             //add output frames too

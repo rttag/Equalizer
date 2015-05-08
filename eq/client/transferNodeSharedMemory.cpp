@@ -38,13 +38,13 @@ void TransferNodeSharedMemory::attach( const UUID& id, const uint32_t instanceID
 
     co::CommandQueue* commandQ = getLocalNode()->getCommandThreadQueue();
 
-    registerCommand( fabric::CMD_TRANSFERNODE_CLEAR,
+    registerCommand( fabric::CMD_TRANSFERNODE_SHAREDMEM_CLEAR,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdClear ), commandQ );
-    registerCommand( fabric::CMD_TRANSFERNODE_CLEAR_REPLY,
+    registerCommand( fabric::CMD_TRANSFERNODE_SHAREDMEM_CLEAR_REPLY,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdClearReply ), 0 );
-    registerCommand( fabric::CMD_TRANSFERNODE_MAPMEM,
+    registerCommand( fabric::CMD_TRANSFERNODE_SHAREDMEM_MAPMEM,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdMapMemory ), commandQ );
-    registerCommand( fabric::CMD_TRANSFERNODE_MAPMEM_REPLY,
+    registerCommand( fabric::CMD_TRANSFERNODE_SHAREDMEM_MAPMEM_REPLY,
         CmdFunc( this, &TransferNodeSharedMemory::_cmdMapMemoryReply ), 0 );
 }
 
@@ -78,7 +78,8 @@ bool TransferNodeSharedMemory::_cmdClear( co::ICommand& cmd )
     uint32_t reqID = command.get<uint32_t>();
     clear();
 
-    send( cmd.getNode(), fabric::CMD_TRANSFERNODE_CLEAR_REPLY ) << reqID;
+    send( cmd.getNode(), fabric::CMD_TRANSFERNODE_SHAREDMEM_CLEAR_REPLY ) 
+        << reqID;
 
     return true;
 }
@@ -242,7 +243,7 @@ void TransferNodeSharedMemory::resizeMemory( const Image* const image )
                << std::endl;
         
         uint32_t reqID = getLocalNode()->registerRequest();
-        send( _targetNode, fabric::CMD_TRANSFERNODE_CLEAR ) << reqID;
+        send( _targetNode, fabric::CMD_TRANSFERNODE_SHAREDMEM_CLEAR ) << reqID;
         clear();
 
         getLocalNode()->waitRequest( reqID );
@@ -257,7 +258,7 @@ void TransferNodeSharedMemory::resizeMemory( const Image* const image )
         }
         
         reqID = getLocalNode()->registerRequest();
-        send( _targetNode, fabric::CMD_TRANSFERNODE_MAPMEM ) << reqID;
+        send( _targetNode, fabric::CMD_TRANSFERNODE_SHAREDMEM_MAPMEM ) << reqID;
 
         bool ok = 0;
         getLocalNode()->waitRequest( reqID, ok );
@@ -279,7 +280,8 @@ bool TransferNodeSharedMemory::_cmdMapMemory( co::ICommand& cmd )
         _name.c_str() );
 
     bool ok = _memory != 0;
-    send( cmd.getNode(), fabric::CMD_TRANSFERNODE_MAPMEM_REPLY ) << reqID << ok;
+    send( cmd.getNode(), fabric::CMD_TRANSFERNODE_SHAREDMEM_MAPMEM_REPLY ) 
+        << reqID << ok;
 
     if ( !ok )
         LBERROR << "couldn't remap shared memory on receiver side" << std::endl;
@@ -309,11 +311,13 @@ bool TransferNodeSharedMemory::_cmdMapMemoryReply( co::ICommand& cmd )
 void TransferNodeSharedMemory::getInstanceData( co::DataOStream& os )
 {
     os << _name;
+    TransferNode::getInstanceData( os );
 }
 
 void TransferNodeSharedMemory::applyInstanceData( co::DataIStream& is )
 {
     is >> _name;
+    TransferNode::applyInstanceData( is );
 }
 
 }

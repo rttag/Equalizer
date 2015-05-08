@@ -1601,7 +1601,6 @@ bool Channel::_cmdFrameDraw( co::ICommand& cmd )
                              finish ? NICEST : AUTO );
 
     frameDraw( context.frameID );
-
     // Update ROI for server equalizers
     if( !getRegion().isValid( ))
         declareRegion( getPixelViewport( ));

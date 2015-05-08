@@ -297,12 +297,4 @@ bool TransferNodeCollage::receiveImage( Image* image, co::ObjectICommand& cmd )
     return true;
 }
 
-void TransferNodeCollage::getInstanceData( co::DataOStream& /*os*/ )
-{
-}
-
-void TransferNodeCollage::applyInstanceData( co::DataIStream& /*is*/ )
-{
-}
-
 }
