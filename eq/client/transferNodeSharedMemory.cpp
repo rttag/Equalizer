@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "transferNodeSharedMemory.h"
 #include "frame.h"
 #include "image.h"
@@ -321,3 +322,4 @@ void TransferNodeSharedMemory::applyInstanceData( co::DataIStream& is )
 }
 
 }
+#endif

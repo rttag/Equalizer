@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef _WIN32
 #include "transferNode.h"
 
 #include <eq/fabric/pixelViewport.h>
@@ -69,3 +69,4 @@ private:
 };
 
 }
+#endif
