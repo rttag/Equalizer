@@ -71,7 +71,6 @@ void Node::attach( const UUID& id, const uint32_t instanceID )
     Super::attach( id, instanceID );
 
     co::CommandQueue* queue = getMainThreadQueue();
-    co::CommandQueue* commandQ = getCommandThreadQueue();
     co::CommandQueue* transmitQ = &transmitter.getQueue();
 
     registerCommand( fabric::CMD_NODE_CREATE_PIPE,
