@@ -44,9 +44,9 @@ VisitorResult ChannelUploadVisitor::visitPre( const Compound* compound )
     const Frames& inputFrames = compound->getInputFrames();
     LBASSERT( !inputFrames.empty( ));
 
-    std::vector< const co::ObjectVersion > frames;
-    std::vector< const Vector2i > offsets;
-    std::vector< const Eye > eyes;
+    std::vector< co::ObjectVersion > frames;
+    std::vector< Vector2i > offsets;
+    std::vector< Eye > eyes;
     for( Frames::const_iterator iter = inputFrames.begin();
         iter != inputFrames.end(); ++iter )
     {

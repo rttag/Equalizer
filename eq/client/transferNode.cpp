@@ -23,8 +23,8 @@ TransferNode::TransferNode()
     , _stats( 0 )
     , _requestToken( false )
     , _type( INVALID )
-    , _addImageFunc()
     , _createImageFunc()
+    , _addImageFunc()
 {}
 
 void TransferNode::attach( const UUID& id, const uint32_t instanceID )

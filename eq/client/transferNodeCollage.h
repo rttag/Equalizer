@@ -20,7 +20,7 @@ protected:
     friend class TransferNode;
 
     typedef std::vector< const PixelData* > PixelDatas;
-    typedef std::vector< const float > Qualities;
+    typedef std::vector< float > Qualities;
 
     TransferNodeCollage();
 

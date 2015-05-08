@@ -479,8 +479,10 @@ bool Window::configInitGL( const uint128_t& )
 
 bool Window::createTransferWindow()
 {
+#ifdef _WIN32
     HDC hdc = wglGetCurrentDC();
     HGLRC  hglrc = wglGetCurrentContext();
+#endif
     LBASSERT( _systemWindow );
 
     if( _transferWindow )
@@ -509,8 +511,11 @@ bool Window::createTransferWindow()
                 << " not implemented or supported" << std::endl;
 
     setIAttribute( IATTR_HINT_DRAWABLE, drawable );
-    //makeCurrent();
+#ifdef _WIN32
     wglMakeCurrent( hdc, hglrc );
+#else
+    makeCurrent();
+#endif
 
     LBVERB << "Transfer window initialization finished" << std::endl;
     return _transferWindow != 0;

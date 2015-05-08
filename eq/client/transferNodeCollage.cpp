@@ -212,11 +212,6 @@ void TransferNodeCollage::_sendPixelData( const PixelDatas& pixelDatas,
 #endif
         }
     }
-#ifndef NDEBUG
-    LBASSERTINFO( sentBytes == imageDataSize,
-        sentBytes << " != " << imageDataSize );
-#endif
-
 }
 
 bool TransferNodeCollage::receiveImage( Image* image, co::ObjectICommand& cmd )
@@ -225,7 +220,7 @@ bool TransferNodeCollage::receiveImage( Image* image, co::ObjectICommand& cmd )
     const Zoom zoom = cmd.get< Zoom >();
     const uint32_t buffers_ = cmd.get< uint32_t >();
     const bool useAlpha = cmd.get< bool >();
-    const uint128_t frameID = cmd.get< uint128_t >();
+    /*const uint128_t frameID = */ cmd.get< uint128_t >();
     // Note on the const_cast: since the PixelData structure stores non-const
     // pointers, we have to go non-const at some point, even though we do not
     // modify the data.
@@ -237,7 +232,6 @@ bool TransferNodeCollage::receiveImage( Image* image, co::ObjectICommand& cmd )
         << ", buffers " << buffers_ << " pvp " << pvp << std::endl;
 
     LBASSERT( pvp.isValid( ));
-    LBASSERT( isReady() );
 
     image->setPixelViewport( pvp );
     image->setAlphaUsage( useAlpha );
