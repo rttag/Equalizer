@@ -87,16 +87,16 @@ TransferNode* TransferNode::createReceiver( co::LocalNodePtr localNode,
     switch ( type )
     {
 #ifdef _WIN32
-    case TransferNode::Type::SHAREDMEM:
+    case TransferNode::SHAREDMEM:
         LBINFO << "creating shared memory receiver node" << std::endl;
         transferNode = new TransferNodeSharedMemory;
         break;
 #endif
-    case TransferNode::Type::COLLAGE:
+    case TransferNode::COLLAGE:
         LBINFO << "creating collage based receiver node" << std::endl;
         transferNode = new TransferNodeCollage;
         break;
-    case TransferNode::Type::INVALID:
+    case TransferNode::INVALID:
     default:
         LBERROR << "unknown transfer node type" << std::endl;
         return 0;
