@@ -48,6 +48,19 @@ protected:
         uint64_t dataSize[ 2 ];
     };
 
+    struct SharedMemImage
+    {
+        SharedMemImage()
+        : meta( 0 )
+        {
+            pixels[0] = 0;
+            pixels[1] = 0;
+        }
+
+        ImageMetaData* meta;
+        uint8_t* pixels[2];
+    };
+
     friend class TransferNode;
 
     TransferNodeSharedMemory();
@@ -57,15 +70,17 @@ private:
     void resizeMemory( const Image* const image );
     void clear();
 
+    TransferNodeSharedMemory::SharedMemImage& 
+        _getSharedMemImage( const uint128_t& frameID, uint8_t& index );
+
     bool _cmdClear( co::ICommand& cmd );
     bool _cmdClearReply( co::ICommand& cmd );
     bool _cmdMapMemory( co::ICommand& cmd );
     bool _cmdMapMemoryReply( co::ICommand& cmd );
 
     bip::managed_windows_shared_memory* _memory;
-    ImageMetaData*                      _imageMeta;
-    uint8_t*                            _pixels[ 2 ];
     std::string                         _name;
+    std::vector<SharedMemImage>         _data;
 };
 
 }

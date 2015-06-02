@@ -9,21 +9,43 @@
 #include <co/objectOCommand.h>
 #include <co/objectICommand.h>
 
+namespace
+{
+    std::string strMeta;
+    std::string strColor;
+    std::string strDepth;
+
+    const char* metaName( uint8_t index )
+    {
+        strMeta = "imageMeta";
+        strMeta += index;
+        return strMeta.c_str();
+    }
+
+    const char* colorName( uint8_t index )
+    {
+        strMeta = "colorBuffer";
+        strMeta += index;
+        return strMeta.c_str();
+    }
+
+    const char* depthName( uint8_t index )
+    {
+        strMeta = "depthBuffer";
+        strMeta += index;
+        return strMeta.c_str();
+    }
+}
+
 namespace eq
 {
-
-const char* METADATA_OBJECT = "imageMeta";
-const char* COLORBUFFER_ARRAY = "colorBuffer";
-const char* DEPTHBUFFER_ARRAY = "depthBuffer";
 
 TransferNodeSharedMemory::TransferNodeSharedMemory()
     : TransferNode()
     , _memory( 0 )
-    , _imageMeta( 0 )
+    , _data()
 {
     _type = SHAREDMEM;
-    _pixels[0] = 0;
-    _pixels[1] = 0;
 }
 
 TransferNodeSharedMemory::~TransferNodeSharedMemory()
@@ -51,18 +73,21 @@ void TransferNodeSharedMemory::attach( const UUID& id, const uint32_t instanceID
 
 void TransferNodeSharedMemory::clear()
 {
-    if ( _imageMeta )
+    for ( size_t i = 0; i < _data.size(); ++i )
     {
-        _memory->destroy_ptr( _imageMeta );
-        _imageMeta = 0;
-    }
-
-    for( unsigned j = 0; j < 2; ++j )
-    {
-        if ( _pixels[ j ] )
+        if ( _data[i].meta )
         {
-            _memory->destroy_ptr( _pixels[ j ] );
-            _pixels[ j ] = 0;
+            _memory->destroy_ptr( _data[i].meta );
+            _data[i].meta = 0;
+        }
+
+        for( unsigned j = 0; j < 2; ++j )
+        {
+            if ( _data[i].pixels[ j ] )
+            {
+                _memory->destroy_ptr( _data[i].pixels[ j ] );
+                _data[i].pixels[ j ] = 0;
+            }
         }
     }
 
@@ -71,6 +96,8 @@ void TransferNodeSharedMemory::clear()
         delete _memory;
         _memory = 0;
     }
+
+    _data.clear();
 }
 
 bool TransferNodeSharedMemory::_cmdClear( co::ICommand& cmd )
@@ -131,17 +158,20 @@ void TransferNodeSharedMemory::sendImage( Image* image, uint32_t frameNumber,
     if ( !_memory )
         return;
 
-    if ( !_imageMeta )
+    uint8_t index = 0;
+    SharedMemImage& mem = _getSharedMemImage( frameID, index );
+    
+    if ( !mem.meta )
     {
-        _imageMeta = _memory->construct< ImageMetaData >( METADATA_OBJECT )();
+        mem.meta = _memory->construct< ImageMetaData >( metaName( index ) )();
     }
 
-    _imageMeta->commandBuffers = Frame::BUFFER_NONE;
-    _imageMeta->alphaUsage = image->getAlphaUsage();
-    _imageMeta->pvp = image->getPixelViewport();
-    _imageMeta->zoom = image->getZoom();
-    _imageMeta->frameNumber = frameNumber;
-    _imageMeta->frameID = frameID;
+    mem.meta->commandBuffers = Frame::BUFFER_NONE;
+    mem.meta->alphaUsage = image->getAlphaUsage();
+    mem.meta->pvp = image->getPixelViewport();
+    mem.meta->zoom = image->getZoom();
+    mem.meta->frameNumber = frameNumber;
+    mem.meta->frameID = frameID;
 
     Frame::Buffer buffers[] = {Frame::BUFFER_COLOR,Frame::BUFFER_DEPTH};
 
@@ -152,73 +182,100 @@ void TransferNodeSharedMemory::sendImage( Image* image, uint32_t frameNumber,
         if ( image->hasPixelData( buffer ))
         {
             uint32_t size = image->getPixelDataSize( buffer );
-            if ( _pixels[j] && ( _imageMeta->dataSize[ j ] < size ))
+            if ( mem.pixels[j] && ( mem.meta->dataSize[ j ] < size ))
             {
-                _memory->destroy_ptr( _pixels[ j ] );
-                _pixels[j] = 0;
+                _memory->destroy_ptr( mem.pixels[ j ] );
+                mem.pixels[j] = 0;
             }
 
-            if ( !_pixels[ j ] )
+            if ( !mem.pixels[ j ] )
             {
-                _pixels[ j ] = _memory->construct< uint8_t >(
-                    j ? COLORBUFFER_ARRAY : DEPTHBUFFER_ARRAY )[ size ]();
+                mem.pixels[ j ] = _memory->construct< uint8_t >(
+                    j ? colorName( index ) : depthName( index ) )[ size ]();
             }
 
             const PixelData& data = image->getPixelData( buffer );
-            _imageMeta->commandBuffers |= buffer;
-            _imageMeta->dataSize[j] = size;
-            _imageMeta->internalFormat[j] = data.internalFormat;
-            _imageMeta->externalFormat[j] = data.externalFormat;
-            _imageMeta->pixelSize[j] = data.pixelSize;
-            _imageMeta->quality[j] = image->getQuality( buffer );
+            mem.meta->commandBuffers |= buffer;
+            mem.meta->dataSize[j] = size;
+            mem.meta->internalFormat[j] = data.internalFormat;
+            mem.meta->externalFormat[j] = data.externalFormat;
+            mem.meta->pixelSize[j] = data.pixelSize;
+            mem.meta->quality[j] = image->getQuality( buffer );
 
-            memcpy( _pixels[ j ], data.pixels, size );
+            memcpy( mem.pixels[ j ], data.pixels, size );
         }
     }
 
     // actually this send was supposed be in the beginning of the function and 
     // synchronization was supposed to happen with a interprocess::mutex, but
     // unlocking bip::mutex seems to be really slow for some reason ( > 1500µs )
-    initiateSend( frameNumber );
+    initiateSend( frameNumber ) << index;
 }
 
-bool TransferNodeSharedMemory::receiveImage( Image* image, co::ObjectICommand& )
+TransferNodeSharedMemory::SharedMemImage& 
+TransferNodeSharedMemory::_getSharedMemImage( const uint128_t& frameID, 
+                                              uint8_t& index )
 {
+    index = 0;
+    while ( index < _data.size() )
+    {
+        if ( _data[index].meta->frameID != frameID )
+            break;
+
+        ++index;
+    }
+
+    if ( index == _data.size() )
+        _data.emplace_back();
+
+    return _data[index];
+}
+
+bool TransferNodeSharedMemory::receiveImage( Image* image, 
+                                             co::ObjectICommand& cmd )
+{
+    uint8_t index = cmd.get<uint8_t>();
+    
     if ( !_memory )
         return false;
 
-    _imageMeta = _memory->find< ImageMetaData >( METADATA_OBJECT ).first;
+    if ( _data.size() <= index )
+        _data.resize( index + 1 );
+    
+    SharedMemImage& mem = _data[ index ];
 
-    if ( !_imageMeta )
+    mem.meta = _memory->find< ImageMetaData >( metaName( index ) ).first;
+
+    if ( !mem.meta )
         return false;
 
-    image->setPixelViewport( _imageMeta->pvp );
-    image->setAlphaUsage( _imageMeta->alphaUsage );
-    image->setZoom( _imageMeta->zoom );
+    image->setPixelViewport( mem.meta->pvp );
+    image->setAlphaUsage( mem.meta->alphaUsage );
+    image->setZoom( mem.meta->zoom );
 
     Frame::Buffer buffers[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
     for( unsigned j = 0; j < 2; ++j )
     {
         const Frame::Buffer buffer = buffers[j];
 
-        if( _imageMeta->commandBuffers & buffer )
+        if( mem.meta->commandBuffers & buffer )
         {
-            _pixels[j] = _memory->find< uint8_t >( 
-                j ? COLORBUFFER_ARRAY : DEPTHBUFFER_ARRAY ).first;
-            if ( !_pixels[j] )
+            mem.pixels[j] = _memory->find< uint8_t >( 
+                j ? colorName( index ) : depthName( index ) ).first;
+            if ( !mem.pixels[j] )
                 return false;
 
             PixelData pixelData;
-            pixelData.internalFormat  = _imageMeta->internalFormat[j];
-            pixelData.externalFormat  = _imageMeta->externalFormat[j];
-            pixelData.pixelSize       = _imageMeta->pixelSize[j];
-            pixelData.pvp             = _imageMeta->pvp;
+            pixelData.internalFormat  = mem.meta->internalFormat[j];
+            pixelData.externalFormat  = mem.meta->externalFormat[j];
+            pixelData.pixelSize       = mem.meta->pixelSize[j];
+            pixelData.pvp             = mem.meta->pvp;
             pixelData.compressorName  = EQ_COMPRESSOR_NONE;
             pixelData.compressorFlags = 0;
             pixelData.isCompressed    = false;
-            pixelData.pixels = _pixels[j];
+            pixelData.pixels = mem.pixels[j];
 
-            image->setQuality( buffer, _imageMeta->quality[j] );
+            image->setQuality( buffer, mem.meta->quality[j] );
             image->setPixelData( buffer, pixelData, true );
         }
     }

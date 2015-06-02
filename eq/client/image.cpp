@@ -827,6 +827,21 @@ void Image::clearPixelData( const Frame::Buffer buffer )
 #endif
         break;
       }
+      case EQ_COMPRESSOR_DATATYPE_RGB10_A2:
+      case EQ_COMPRESSOR_DATATYPE_BGR10_A2:
+      {
+        uint8_t* data = reinterpret_cast< uint8_t* >( memory.pixels );
+#ifdef Darwin
+        const unsigned char pixel[4] = { 0, 0, 0, 4 };
+        memset_pattern4( data, &pixel, size );
+#else
+        lunchbox::setZero( data, size );
+#pragma omp parallel for
+        for( ssize_t i = 3; i < size; i+=4 )
+            data[i] = 4;
+#endif
+        break;
+      }
       default:
         LBWARN << "Unknown external format " << memory.externalFormat
                << ", initializing to 0" << std::endl;
