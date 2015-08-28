@@ -247,6 +247,7 @@ Image* FrameData::_allocImage( const eq::Frame::Type type,
         image->reset();
     }
 
+    image->setZoom( eq::Zoom::NONE );
     image->setAlphaUsage( _useAlpha );
     image->setStorageType( type );
     if( setQuality_ )
@@ -485,7 +486,10 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
     const co::ObjectVersion& ov = _readyMap[ frameID ].first;
     const FrameData::Data& data = _readyMap[ frameID ].second;
 
-    if ( chanID != UUID::ZERO )
+    _pendingImages.lock.set();
+    size_t size = _pendingImages->size();
+    _pendingImages.lock.unset();
+    if ( chanID != UUID::ZERO && size == 1 )
     {
         co::ObjectOCommand( getLocalNode().get(), getLocalNode(), 
             fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES, co::COMMANDTYPE_OBJECT, 
