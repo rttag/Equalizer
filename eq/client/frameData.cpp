@@ -77,6 +77,8 @@ void FrameData::attach( const UUID& id, const uint32_t instanceID )
         CmdFunc( this, &FrameData::_cmdCreateReceiver ), _transmitQueue );
     registerCommand( fabric::CMD_FRAMEDATA_CREATE_RECEIVER_REPLY,
         CmdFunc( this, &FrameData::_cmdCreateReceiverReply ), 0 );
+    registerCommand( fabric::CMD_FRAMEDATA_PREPARE_UPLOAD,
+        CmdFunc( this, &FrameData::_cmdPrepareUpload ), commandQ );
 }
 
 FrameData::~FrameData()
@@ -478,8 +480,8 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
     if ( _readyMap.find( frameID ) == _readyMap.end() )
         return false;
 
-    if ( _asyncUploadMap.find( frameID ) == _asyncUploadMap.end() )
-        return false;
+        if ( _asyncUploadMap.find( frameID ) == _asyncUploadMap.end() )
+            return false;
 
     const UUID& chanID = _asyncUploadMap[ frameID ].first;
     const Vector2i& offset = _asyncUploadMap[ frameID ].second;
@@ -500,7 +502,6 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
         //sync upload
         setReady( ov, data );
         LBASSERT( isReady() );
-        return true;
     }
     
     _readyMap.erase( frameID );
@@ -652,6 +653,18 @@ void FrameData::setNodeStatsProxy( const StatisticsProxy& proxy )
     _nodeStatsProxy = proxy;
 }
 
+bool FrameData::_cmdPrepareUpload( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+
+    const Vector2i& offset = command.get<Vector2i>();
+    const uint128_t& frameID = command.get<uint128_t>();
+    const UUID& id = command.get<UUID>();
+
+    prepareUpload( frameID, id, offset );
+
+    return true;
+}
 
 std::ostream& operator << ( std::ostream& os, const FrameData& data )
 {

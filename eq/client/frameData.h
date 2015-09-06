@@ -423,8 +423,9 @@ namespace server { class FrameData; }
 
         bool _cmdFrameDataTransmit( co::ICommand& command );
         bool _cmdFrameDataReady( co::ICommand& command );
-        bool _cmdCreateReceiver( co::ICommand& cmd );
-        bool _cmdCreateReceiverReply( co::ICommand& cmd );
+        bool _cmdCreateReceiver( co::ICommand& command );
+        bool _cmdCreateReceiverReply( co::ICommand& command );
+        bool _cmdPrepareUpload( co::ICommand& command );
 
         LB_TS_VAR( _commandThread );
     };

@@ -134,7 +134,7 @@ void Frame::cycleData( const uint32_t frameNumber, const Compound* compound )
         const uint32_t latency = getAutoObsolete();
         const uint32_t dataAge = data ? data->getFrameNumber() : 0;
 
-        if( data && dataAge < frameNumber-latency-1 && frameNumber > latency )
+        if( data && dataAge < frameNumber-latency-2 && frameNumber > latency )
             // not used anymore
             _datas.pop_back();
         else // still used - allocate new data

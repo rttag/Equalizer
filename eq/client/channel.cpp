@@ -1896,16 +1896,16 @@ bool Channel::_cmdPrepareUpload( co::ICommand& cmd )
     const std::vector< fabric::Eye > eyes = 
         command.get< std::vector< fabric::Eye > >();
 
-    uint128_t frameID = command.get< uint128_t >();
+    const uint128_t& frameID = command.get< uint128_t >();
     bool async = command.get<bool>();
     _setInputFrames( frames, eyes );
 
     for( size_t i=0; i < _impl->inputFrames.size(); ++i )
     {
         Frame* frame = _impl->inputFrames[i];
-        FrameDataPtr frameData = frame->getFrameData();
-        const UUID& id = async ? getID() : UUID::ZERO;
-        frameData->prepareUpload( frameID, id, offsets[i] );
+        frame->getFrameData()->send( getLocalNode(), 
+            fabric::CMD_FRAMEDATA_PREPARE_UPLOAD ) 
+            << offsets[i] << frameID << ( async ? getID() : UUID::ZERO ) ;
     }
 
     return true;
