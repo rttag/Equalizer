@@ -1111,6 +1111,8 @@ void Compositor::assembleImage( const Image* image, const ImageOp& op )
     ImageOp operation = op;
     operation.buffers = Frame::BUFFER_NONE;
 
+    image->waitUploadFinished();
+
     const Frame::Buffer buffer[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
     for( unsigned i = 0; i<2; ++i )
     {

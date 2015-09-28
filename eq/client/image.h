@@ -345,6 +345,8 @@ namespace detail { class Image; }
                             const Vector2i& position,
                             ObjectManager* glObjects ) const;
 
+        EQ_API void waitUploadFinished() const;
+
         /** Write the pixel data as rgb image file. @version 1.0 */
         EQ_API bool writeImage( const std::string& filename,
                                    const Frame::Buffer buffer ) const;
@@ -425,6 +427,9 @@ namespace detail { class Image; }
 
         bool _readbackZoom( const Frame::Buffer buffer, const Zoom& zoom,
                             ObjectManager* glObjects );
+
+        const GLEWContext* glewGetContext() const;
+
     };
 };
 #endif // EQ_IMAGE_H
