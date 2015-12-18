@@ -481,8 +481,11 @@ uint32_t Config::finishAllFrames()
         }
         catch( const co::Exception& e )
         {
-            LBWARN << e.what() << std::endl;
-            break;
+            const uint32_t frameToFinish = 
+                std::min( _impl->finishedFrame + 1, _impl->currentFrame );
+            LBVERB << e.what() << ". Checking up on frame" << frameToFinish 
+                   << std::endl;
+            send( getServer(), fabric::CMD_CONFIG_CHECK_FRAME )<< frameToFinish;
         }
     }
     handleEvents();
