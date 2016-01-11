@@ -628,10 +628,6 @@ bool Compositor::_collectOutputData(
         for( Images::const_iterator j = images.begin(); j != images.end(); ++j )
         {
             const Image* image = *j;
-            LBASSERT( image->getStorageType() == Frame::TYPE_MEMORY );
-            if( image->getStorageType() != Frame::TYPE_MEMORY )
-                return false;
-
             if( !image->hasPixelData( Frame::BUFFER_COLOR ))
                 continue;
 
@@ -1110,8 +1106,6 @@ void Compositor::assembleImage( const Image* image, const ImageOp& op )
 {
     ImageOp operation = op;
     operation.buffers = Frame::BUFFER_NONE;
-
-    image->waitUploadFinished();
 
     const Frame::Buffer buffer[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
     for( unsigned i = 0; i<2; ++i )

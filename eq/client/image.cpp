@@ -157,8 +157,7 @@ namespace detail
 class Image
 {
 public:
-    Image() : type( eq::Frame::TYPE_MEMORY ), ignoreAlpha( false ), sync ( 0 ) 
-    {}
+    Image() : type( eq::Frame::TYPE_MEMORY ), ignoreAlpha( false ) {}
 
     /** The rectangle of the current pixel data. */
     PixelViewport pvp;
@@ -174,9 +173,6 @@ public:
 
     /** Alpha channel significance. */
     bool ignoreAlpha;
-
-    mutable GLsync sync;
-    const GLEWContext* context;
 
     Attachment& getAttachment( const eq::Frame::Buffer buffer )
     {
@@ -474,14 +470,13 @@ bool Image::upload( const Frame::Buffer buffer, util::Texture* texture,
                            EQ_COMPRESSOR_DATA_2D |
                            ( texture ? texture->getCompressorTarget() :
                                        EQ_COMPRESSOR_USE_FRAMEBUFFER );
-    _impl->context = glObjects->glewGetContext();
+    const GLEWContext* const gl = glObjects->glewGetContext();
 
-    if( !uploader->supports( externalFormat, internalFormat, flags, 
-                                                            glewGetContext( )))
+    if( !uploader->supports( externalFormat, internalFormat, flags, gl ))
         uploader->setup( co::Global::getPluginRegistry(), externalFormat,
-                         internalFormat, flags, glewGetContext() );
+                         internalFormat, flags, gl );
 
-    if( !uploader->isGood( glewGetContext() ))
+    if( !uploader->isGood( gl ))
     {
         LBWARN << "No upload plugin for " << std::hex << externalFormat
                << " -> " << internalFormat << std::dec << " upload" <<std::endl;
@@ -498,10 +493,7 @@ bool Image::upload( const Frame::Buffer buffer, util::Texture* texture,
     pixelData.pvp.convertToPlugin( inDims );
     pvp.convertToPlugin( outDims );
     uploader->upload( pixelData.pixels, inDims, flags, outDims,
-                      texture ? texture->getName() : 0, glewGetContext() );
-    
-    _impl->sync = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
-    
+                      texture ? texture->getName() : 0, gl );
     return true;
 }
 
@@ -1673,21 +1665,5 @@ void Image::setOffset( int32_t x, int32_t y )
     _impl->pvp.x = x;
     _impl->pvp.y = y;
 }
-
-void Image::waitUploadFinished() const
-{
-    if ( glIsSync( _impl->sync ) )
-    {
-        glWaitSync( _impl->sync, 0, GL_TIMEOUT_IGNORED );
-        glDeleteSync( _impl->sync );
-        _impl->sync = 0;
-    }
-}
-
-const GLEWContext* Image::glewGetContext() const
-{
-    return _impl->context;
-}
-
 
 }
