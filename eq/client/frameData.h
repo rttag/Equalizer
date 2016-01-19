@@ -109,6 +109,17 @@ namespace server { class FrameData; }
          */
         const Range& getRange() const { return _data.range; }
 
+        /** Set the tiled flag for this frame data. @version 1.0 */
+        void setTiled( bool tiled ) { _data.tiled = tiled; }
+
+        /**
+         * Get the information if tile based rendering was used
+         *
+         * @return true if tiled, false if not.
+         * @version 1.0
+         */
+        bool getTiled() const { return _data.tiled; }
+
         /** Set the range of this frame. @version 1.0 */
         void setRange( const Range& range ) { _data.range = range; }
 
@@ -303,7 +314,7 @@ namespace server { class FrameData; }
         struct Data
         {
             Data() : frameType( Frame::TYPE_MEMORY ), buffers( 0 ), period( 1 )
-                   , phase( 0 ) {}
+                   , phase( 0 ), tiled( false ) {}
 
             EQ_API Data& operator=( const Data& rhs );
 
@@ -316,6 +327,7 @@ namespace server { class FrameData; }
             Pixel         pixel;     //<! pixel decomposition of source
             SubPixel      subpixel;  //<! subpixel decomposition of source
             Zoom          zoom;
+            bool          tiled;
 
             EQ_API void serialize( co::DataOStream& os ) const;
             EQ_API void deserialize( co::DataIStream& is );
@@ -361,8 +373,6 @@ namespace server { class FrameData; }
         virtual ChangeType getChangeType() const { return INSTANCE; }
         virtual void getInstanceData( co::DataOStream& os );
         virtual void applyInstanceData( co::DataIStream& is );
-
-        void _setupTransferNode( const co::NodeID& netNodeID );
 
     private:
         Images _images;
@@ -420,6 +430,8 @@ namespace server { class FrameData; }
 
         /** Set a specific version ready. */
         void _setReady( const uint64_t version );
+
+        void _setupTransferNode( const co::NodeID& netNodeID );
 
         bool _cmdFrameDataTransmit( co::ICommand& command );
         bool _cmdFrameDataReady( co::ICommand& command );

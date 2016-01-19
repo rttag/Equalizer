@@ -153,6 +153,7 @@ FrameData::Data& FrameData::Data::operator = ( const Data& rhs )
         pixel = rhs.pixel;
         subpixel = rhs.subpixel;
         zoom = rhs.zoom;
+        tiled = rhs.tiled;
         // don't assign input nodes & -netNodes here
     }
     return *this;
@@ -161,13 +162,13 @@ FrameData::Data& FrameData::Data::operator = ( const Data& rhs )
 void FrameData::Data::serialize( co::DataOStream& os ) const
 {
     os << pvp << frameType << buffers << period << phase << range
-       << pixel << subpixel << zoom;
+       << pixel << subpixel << zoom << tiled;
 }
 
 void FrameData::Data::deserialize( co::DataIStream& is )
 {
     is >> pvp >> frameType >> buffers >> period >> phase >> range
-       >> pixel >> subpixel >> zoom;
+       >> pixel >> subpixel >> zoom >> tiled;
 }
 
 void FrameData::clear()
@@ -488,10 +489,8 @@ bool FrameData::triggerUpload( const uint128_t& frameID )
     const co::ObjectVersion& ov = _readyMap[ frameID ].first;
     const FrameData::Data& data = _readyMap[ frameID ].second;
 
-    _pendingImages.lock.set();
-    size_t size = _pendingImages->size();
-    _pendingImages.lock.unset();
-    if ( chanID != UUID::ZERO && size == 1 )
+    if ( data.tiled == false && // tiles aren't uploaded asynchronously
+         chanID != UUID::ZERO )
     {
         co::ObjectOCommand( getLocalNode().get(), getLocalNode(), 
             fabric::CMD_CHANNEL_FRAME_UPLOAD_IMAGES, co::COMMANDTYPE_OBJECT, 

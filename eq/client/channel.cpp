@@ -1123,7 +1123,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
 
             for( size_t i = 0; i < nFrames; ++i )
             {
-                const Frame* frame = outFrames[i];
+                Frame* frame = outFrames[i];
                 const Images& images = frame->getImages();
                 for( size_t j = nImages[i]; j < images.size(); ++j )
                 {
@@ -1132,6 +1132,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
                     image->setOffset( pvp.x + tilePVP.x,
                                       pvp.y + tilePVP.y );
                 }
+                frame->getFrameData()->setTiled( true );
             }
 
             if( _asyncFinishReadback( nImages, context.frameID ))
