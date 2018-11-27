@@ -11,6 +11,8 @@ option(EQUALIZER_INSTALL_SERVER_HEADERS "Install Equalizer server includes." OFF
 option(EQUALIZER_BUILD_2_0_API
   "Enable for pure 2.0 API (breaks compatibility with 1.x API)" OFF)
 
+add_definitions(-D_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS -wd4091)
+
 mark_as_advanced(EQUALIZER_INSTALL_SERVER_HEADERS)
 
 list(APPEND CMAKE_MODULE_PATH ${Equalizer_SOURCE_DIR}/CMake)
