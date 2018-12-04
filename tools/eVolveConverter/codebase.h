@@ -86,16 +86,16 @@ inline void errormsg(const char *file,int line)
 #define fceil(x) ceil((double)(x))
 #define ftrc(x) (int)ffloor(x)
 
-inline double FABS(const double x) {return((x<0.0)?-x:x);}
-#define fabs(x) FABS(x)
+//inline double FABS(const double x) {return((x<0.0)?-x:x);}
+//#define fabs(x) FABS(x)
 
 inline int min(const int a,const int b) {return((a<b)?a:b);}
-inline double FMIN(const double a,const double b) {return((a<b)?a:b);}
-#define fmin(a,b) FMIN(a,b)
+//inline double FMIN(const double a,const double b) {return((a<b)?a:b);}
+//#define fmin(a,b) FMIN(a,b)
 
 inline int max(const int a,const int b) {return((a>b)?a:b);}
-inline double FMAX(const double a,const double b) {return((a>b)?a:b);}
-#define fmax(a,b) FMAX(a,b)
+//inline double FMAX(const double a,const double b) {return((a>b)?a:b);}
+//#define fmax(a,b) FMAX(a,b)
 
 inline int sqr(const int x) {return(x*x);}
 inline double fsqr(const double x) {return(x*x);}
