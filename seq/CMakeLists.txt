@@ -40,6 +40,8 @@ set(SEQUEL_SOURCES
     renderer.cpp
     viewData.cpp
   )
+  
+include_directories(${Boost_INCLUDE_DIR})
 
 source_group(\\ REGULAR_EXPRESSION .*)
 source_group(\\ FILES CMakeLists.txt ${SEQUEL_HEADERS} ${SEQUEL_SOURCES})

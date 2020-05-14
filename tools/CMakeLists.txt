@@ -15,7 +15,9 @@ macro(EQ_ADD_TOOL NAME)
   purple_install_pdb(${THIS_TARGET} DESTINATION bin COMPONENT tools)
 endmacro(EQ_ADD_TOOL NAME)
 
-include_directories(${CMAKE_SOURCE_DIR}/examples/include
+include_directories(
+  ${Boost_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/examples/include
   ${CMAKE_SOURCE_DIR}/examples/eqPly)
 add_definitions(-DEQ_SYSTEM_INCLUDES) # get GL headers
 
