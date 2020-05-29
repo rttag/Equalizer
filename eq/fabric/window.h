@@ -150,7 +150,13 @@ namespace fabric
 
         /** Set a window attribute. @version 1.0 */
         void setIAttribute( const IAttribute attr, const int32_t value )
-            { _data.iAttributes[attr] = value; }
+        { 
+			if(_data.iAttributes[attr] == value)
+				return;
+
+			_data.iAttributes[attr] = value;
+			setDirty(DIRTY_ATTRIBUTES); 
+		}
 
         /** @return the value of a window attribute. @version 1.0 */
         int32_t  getIAttribute( const IAttribute attr ) const
