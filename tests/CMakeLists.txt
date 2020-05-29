@@ -19,6 +19,7 @@ file(COPY compressor/images ${CMAKE_SOURCE_DIR}/examples/configs
   ${COMPOSITOR_IMAGES} ${TEST_CONFIGS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 include_directories(
+  ${Boost_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/examples/include # test need tclap from examples
   )
