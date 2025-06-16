@@ -29,6 +29,8 @@
 #include <lunchbox/monitor.h>          // member
 #include <lunchbox/mtQueue.h>          // member
 
+#include <unordered_map>
+
 namespace eq
 {
     /**
@@ -277,11 +279,17 @@ namespace eq
         /** The number of the last locally released frame. */
         uint32_t _unlockedFrame;
 
+        #if _MSC_VER < 1920
         typedef stde::hash_map< uint128_t, co::Barrier* > BarrierHash;
+		typedef stde::hash_map< uint128_t, FrameDataPtr > FrameDataHash;
+        #else
+		typedef std::unordered_map< uint128_t, co::Barrier* > BarrierHash;
+		typedef std::unordered_map< uint128_t, FrameDataPtr > FrameDataHash;
+        #endif
+
         /** All barriers mapped by the node. */
         lunchbox::Lockable< BarrierHash > _barriers;
 
-        typedef stde::hash_map< uint128_t, FrameDataPtr > FrameDataHash;
         typedef FrameDataHash::const_iterator FrameDataHashCIter;
         typedef FrameDataHash::iterator FrameDataHashIter;
         /** All frame datas used by the node during rendering. */
