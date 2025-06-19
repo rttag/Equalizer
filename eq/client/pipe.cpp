@@ -51,6 +51,7 @@
 #include <co/queueSlave.h>
 #include <co/worker.h>
 #include <sstream>
+#include <unordered_map>
 
 #ifdef EQ_USE_HWLOC_GL
 #  include <hwloc.h>
@@ -76,10 +77,18 @@ enum State
     STATE_FAILED
 };
 
+#if _MSC_VER < 1920
 typedef stde::hash_map< uint128_t, Frame* > FrameHash;
 typedef stde::hash_map< uint128_t, FrameDataPtr > FrameDataHash;
 typedef stde::hash_map< uint128_t, View* > ViewHash;
 typedef stde::hash_map< uint128_t, co::QueueSlave* > QueueHash;
+#else
+typedef std::unordered_map< uint128_t, Frame* > FrameHash;
+typedef std::unordered_map< uint128_t, FrameDataPtr > FrameDataHash;
+typedef std::unordered_map< uint128_t, View* > ViewHash;
+typedef std::unordered_map< uint128_t, co::QueueSlave* > QueueHash;
+#endif
+
 typedef FrameHash::const_iterator FrameHashCIter;
 typedef FrameDataHash::const_iterator FrameDataHashCIter;
 typedef ViewHash::const_iterator ViewHashCIter;
